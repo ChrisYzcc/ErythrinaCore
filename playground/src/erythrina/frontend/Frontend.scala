@@ -29,7 +29,7 @@ class FrontEnd extends ErythModule {
     ftq.io.pred_rsp     <> bpu.io.ftq_pred_rsp
     ftq.io.enq_req      <> bpu.io.ftq_enq_req
     
-    StageConnect(ftq.io.decode_req, idu.io.decode_req)
+    ftq.io.decode_req   <> idu.io.decode_req
     
     ifu.io.axi.ar       <> io.ar
     ifu.io.axi.r        <> io.r
