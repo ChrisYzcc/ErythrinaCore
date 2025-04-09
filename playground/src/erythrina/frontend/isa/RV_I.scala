@@ -92,8 +92,8 @@ object RVI_J extends InstrType {
     def JALR  = BitPat("b???????_?????_?????_000_?????_11001_11")
 
     val table = Array(
-        JAL -> List(TypeJ, FuType.bru, BRUop.jal),
-        JALR -> List(TypeJ, FuType.bru, BRUop.jalr)
+        JAL -> List(TypeJ, FuType.bru, ALUop.jal),
+        JALR -> List(TypeJ, FuType.bru, ALUop.jalr)
     )
 }
 
