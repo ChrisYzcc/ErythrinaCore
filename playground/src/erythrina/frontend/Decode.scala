@@ -8,6 +8,7 @@ import erythrina.frontend.isa._
 import erythrina.ErythModule
 import utils.SignExt
 import utils.LookupTree
+import erythrina.backend.InstExInfo
 
 trait InstrType {
 	def TypeI   = "b000".U

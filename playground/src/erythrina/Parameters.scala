@@ -12,6 +12,9 @@ trait HasErythCoreParams {
     val FetchWidth = Config.getInt("FetchWidth")
     val FTQSize = Config.getInt("FTQSize")
     val DecodeWidth = FetchWidth
+    val RenameWidth = DecodeWidth
+    val DispatchWidth = RenameWidth
+    val CommitWidth = 2
 
     val PAddrBits = XLEN
     val DataBits = XLEN
@@ -21,8 +24,10 @@ trait HasErythCoreParams {
     val FuOpTypeBits = 7
 
     val PhyRegNum = 64
-    val PhyAddrBits = log2Up(PhyRegNum)
+    val PhyRegAddrBits = log2Up(PhyRegNum)
     
     val ArchRegNum = 32
-    val ArchAddrBits = log2Up(ArchRegNum)
+    val ArchRegAddrBits = log2Up(ArchRegNum)
+
+    val ROBSize = 64
 }

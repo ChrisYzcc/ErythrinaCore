@@ -5,6 +5,7 @@ import chisel3.util._
 import erythrina.ErythModule
 import bus.axi4._
 import utils.StageConnect
+import erythrina.backend.InstExInfo
 
 // Frontend Top
 class FrontEnd extends ErythModule {
