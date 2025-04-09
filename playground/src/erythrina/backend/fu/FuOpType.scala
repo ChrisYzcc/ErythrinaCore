@@ -16,13 +16,13 @@ object ALUop {
     def srl   = "b01010".U
     def sra   = "b01011".U
     def sll   = "b01100".U
-    def jal   = "b01101".U
-    def jalr  = "b01110".U
 
     def usesub(aluop: UInt) = (aluop(3,2) === 0.U) & (aluop(1,0) =/= 0.U)
 }
 
 object BRUop {
+    def jal     = "b0000".U
+    def jalr    = "b0001".U
     def beq     = "b0010".U
     def bne     = "b0011".U
     def blt     = "b0100".U

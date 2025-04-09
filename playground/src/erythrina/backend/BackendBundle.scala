@@ -58,6 +58,7 @@ class InstExInfo extends ErythBundle {
 
     // branch prediction
     val bpu_taken = Bool()      // BPU prediction result
+    val bpu_target = UInt(XLEN.W)
 
     def fromInstInfo(inst_info: InstInfo) = {
         this := 0.U.asTypeOf(new InstExInfo)
