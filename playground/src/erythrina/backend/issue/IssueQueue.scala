@@ -7,64 +7,60 @@ import erythrina.backend.InstExInfo
 import erythrina.frontend.FuType
 import erythrina.backend.fu.EXUInfo
 
-class IssueQueue(name:String, size:Int, exu_num:Int) extends ErythModule {
+class IssueQueue(exu_num:Int, name:String, size:Int) extends ErythModule {
     val io = IO(new Bundle {
-        val enq_req = Vec(DispatchWidth, Flipped(DecoupledIO(new InstExInfo)))
-        
-        val exu_status = Vec(exu_num, Input(new EXUInfo))
-        val deq_req = Vec(exu_num, DecoupledIO(new InstExInfo))
+        val enq = Vec(DispatchWidth, Flipped(DecoupledIO(new InstExInfo)))
+        val deq = Vec(exu_num, DecoupledIO(new InstExInfo))
 
-        // bypass Info
-        val bypass = Vec(exu_num, Flipped(ValidIO(new BypassInfo)))
+        val exu_info = Vec(exu_num, Input(new EXUInfo))
 
-        // redirect
+        val bypass = Vec(BypassWidth, Flipped(ValidIO(new BypassInfo)))
     })
 
+    val entries = RegInit(VecInit(Seq.fill(size)(0.U.asTypeOf(new InstExInfo))))
+    val valids = RegInit(VecInit(Seq.fill(size)(false.B)))
     val age_matrix = RegInit(VecInit(Seq.fill(size)(0.U.asTypeOf(Vec(size, Bool())))))
 
-    val entries = RegInit(VecInit(Seq.fill(size)(0.U.asTypeOf(new InstExInfo))))
-    val valids =  RegInit(VecInit(Seq.fill(size)(false.B)))
+    val (enq, deq) = (io.enq, io.deq)
 
     // Enq
     val free_vec = valids.map(!_)
-    val free_idx_vec = Wire(Vec(DispatchWidth, UInt(log2Ceil(size).W)))
     val free_cnt = PopCount(free_vec)
-
-    require(DispatchWidth == 2)     // TODO: Parameterize
-    free_idx_vec(0) := PriorityEncoder(free_vec)
-    free_idx_vec(1) := PriorityEncoder(free_vec.zipWithIndex.map {
-        case (v, idx) => v && idx.U =/= free_idx_vec(0)
-    })
-
-    val enq_req = io.enq_req
+    val enq_cnt = PopCount(enq.map(_.valid))
+    val alloc_idx = Wire(Vec(DispatchWidth, UInt(log2Ceil(size).W)))
     for (i <- 0 until DispatchWidth) {
-        enq_req(i).ready := free_cnt >= DispatchWidth.U
-
-        when (enq_req(i).fire) {
-            val idx = free_idx_vec(i)
-            entries(idx) := enq_req(i).bits
-            valids(idx) := true.B
-
-            for (j <- 0 until size) {
-                age_matrix(idx)(j) := false.B
-                age_matrix(j)(idx) := true.B
+        val cur_free_vec = if (i == 0) free_vec else free_vec.zipWithIndex.map{
+            case (v, idx) => {
+                val prev_match = alloc_idx.take(i).map(_ === idx.U)
+                v && !prev_match.reduce(_||_)
             }
-            age_matrix(idx)(idx) := true.B
+        }
+        alloc_idx(i) := PriorityEncoder(cur_free_vec)
+
+        enq(i).ready := free_cnt >= enq_cnt
+        when (enq(i).fire) {
+            entries(alloc_idx(i)) := enq(i).bits
+            valids(alloc_idx(i)) := true.B
+            
+            for (j <- 0 until size) {
+                age_matrix(alloc_idx(i))(j) := false.B
+                age_matrix(j)(alloc_idx(i)) := true.B
+            }
         }
     }
 
-    for (i <- 0 until DispatchWidth - 1) {
-        for (j <- i + 1 until DispatchWidth) {
-            when (enq_req(i).fire && enq_req(j).fire) {
-                age_matrix(free_idx_vec(i))(free_idx_vec(j)) := true.B
+    for (i <- 0 until DispatchWidth) {
+        for (j <- i until DispatchWidth) {
+            when (enq(i).fire && enq(j).fire) {
+                age_matrix(alloc_idx(i))(alloc_idx(j)) := true.B
             }
         }
     }
 
     // Deq
-    val candidate_idx = Vec(exu_num, Wire(UInt(log2Ceil(size).W)))  // 0: oldest, 1: second oldest, etc
-    val has_candidate = Wire(Vec(exu_num, Bool()))
-    val candidate_issued = Wire(Vec(exu_num, Bool()))
+    val exu_info = io.exu_info
+    val deq_idx = Wire(Vec(exu_num, UInt(log2Ceil(size).W)))
+    val deq_valid = Wire(Vec(exu_num, Bool()))
 
     val ready_vec = entries.zip(valids).map{
         case (e, v) =>
@@ -73,41 +69,58 @@ class IssueQueue(name:String, size:Int, exu_num:Int) extends ErythModule {
     val tot_ready_cnt = PopCount(ready_vec)
 
     for (i <- 0 until exu_num) {
-        val candidate_vec = Wire(Vec(size, Bool()))
+        val relations = Wire(Vec(size, Bool()))
         for (j <- 0 until size) {
             val age_vec = age_matrix(j)
             val age_cnt = PopCount(age_vec.zip(ready_vec).map{
                 case (a, r) => a && r
             })
-            candidate_vec(j) := age_cnt === (tot_ready_cnt - i.U)
+            relations(j) := age_cnt === (tot_ready_cnt - i.U)
         }
 
-        assert(PopCount(candidate_vec) <= 1.U)
-        candidate_idx(i) := PriorityEncoder(candidate_vec)
-        has_candidate(i) := candidate_vec.reduce(_ || _)
+        assert(PopCount(relations) <= 1.U)
+        deq_idx(i) := PriorityEncoder(relations)
+        deq_valid(i) := relations.reduce(_||_)
     }
 
-    val deq_req = io.deq_req
-    val exu_status = io.exu_status
-    for (i <- 0 until DispatchWidth) {
-        val entry = entries(candidate_idx(i))
+    val handle_exu_idx = Wire(Vec(exu_num, UInt(log2Ceil(exu_num).W)))
+    for (i <- 0 until exu_num) {    // for the oldest exu_num instructions
+        val entry = entries(deq_idx(i))
+        val valid = valids(deq_idx(i))
 
-        deq_req(i).valid := has_candidate(i) && exu_status(i).fu_type_vec(entry.fuType)
-        deq_req(i).bits := entry
+        val available_exu_list = 
+            if (i == 0) {
+                exu_info.map{
+                    case e => !e.busy && e.fu_type_vec(entry.fuType)
+                }
+            } else {
+                exu_info.zipWithIndex.map {
+                    case (e, idx) => {
+                        val prev_match = handle_exu_idx.take(i).map(_ === idx.U)
+                        !e.busy && e.fu_type_vec(entry.fuType) && !prev_match.reduce(_||_)
+                    }
+                }
+            }
 
-        when (deq_req(i).fire) {
-            val idx = candidate_idx(i)
-            valids(idx) := false.B
-        }
+        handle_exu_idx(i) := PriorityEncoder(available_exu_list)
         
-        // TODO: More Accurate EXU
-        assert(!has_candidate(i) || exu_status(i).fu_type_vec(entry.fuType), 
-            s"EXU ${i} cannot handle the instruction")
+        val canHandle = available_exu_list.reduce(_||_)
+        
+        deq(handle_exu_idx(i)).valid := valid && canHandle
+        deq(handle_exu_idx(i)).bits := entry
+
+        when (deq(handle_exu_idx(i)).fire) {
+            valids(deq_idx(i)) := false.B
+            for (j <- 0 until size) {
+                age_matrix(deq_idx(i))(j) := false.B
+                age_matrix(j)(deq_idx(i)) := false.B
+            }
+        }
     }
 
-    // update by bypass
+    // handle bypass
     val bypass = io.bypass
-    for (i <- 0 until exu_num) {
+    for (i <- 0 until BypassWidth) {
         when (bypass(i).valid) {
             for (j <- 0 until size) {
                 entries(j).src1_ready := entries(j).src1_ready || entries(j).p_rs1 === bypass(i).bits.bypass_prd
@@ -115,7 +128,7 @@ class IssueQueue(name:String, size:Int, exu_num:Int) extends ErythModule {
 
                 entries(j).src2_ready := entries(j).src2_ready || entries(j).p_rs2 === bypass(i).bits.bypass_prd
                 entries(j).src2 := Mux(entries(j).src2_ready, entries(j).src2, bypass(i).bits.bypass_data)
-            }
+            }   
         }
     }
 }

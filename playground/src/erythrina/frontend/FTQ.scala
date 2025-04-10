@@ -15,6 +15,8 @@ class FTQ extends ErythModule {
         val fetch_rsp  = Flipped(ValidIO(new InstFetchBlock))      // from IFU
 
         val decode_req  = DecoupledIO(new InstFetchBlock)               // to IDU, deq
+    
+        // redirect?
     })
 
     class Ptr extends CircularQueuePtr[Ptr](FTQSize) {

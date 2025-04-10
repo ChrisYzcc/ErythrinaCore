@@ -27,7 +27,7 @@ class BPU extends ErythModule {
     val base_pc = Mux(base_block.instVec(1).valid, base_block.instVec(1).pc, base_block.instVec(0).pc) + 4.U
 
     val pred_rsp = io.ftq_pred_rsp
-    val resp_block = base_block
+    val resp_block = WireInit(base_block)
     for (i <- 0 until FetchWidth) {
         resp_block.instVec(i).bpu_taken := false.B
     }

@@ -6,7 +6,7 @@ import erythrina.ErythModule
 
 class RAT extends ErythModule {
     val io = IO(new Bundle {
-        // Read Ports
+        // Read Ports (From Rename)
         val rs1 = Vec(RenameWidth, Input(UInt(ArchRegAddrBits.W)))
         val rs2 = Vec(RenameWidth, Input(UInt(ArchRegAddrBits.W)))
         val rd = Vec(RenameWidth, Input(UInt(ArchRegAddrBits.W)))
@@ -15,13 +15,13 @@ class RAT extends ErythModule {
         val rs2_phy = Vec(RenameWidth, Output(UInt(PhyRegAddrBits.W)))
         val rd_phy = Vec(RenameWidth, Output(UInt(PhyRegAddrBits.W)))
 
-        // Physical Write Ports
+        // Physical Write Ports (From Rename)
         val wr_phy = Vec(RenameWidth, Flipped(ValidIO(new Bundle {
             val a_reg = UInt(ArchRegAddrBits.W)
             val p_reg = UInt(PhyRegAddrBits.W)
         })))
 
-        // commit?
+        // commit (From ROB)
         val wr_cmt = Vec(CommitWidth, Flipped(ValidIO(new Bundle {
             val a_reg = UInt(ArchRegAddrBits.W)
             val p_reg = UInt(PhyRegAddrBits.W)
@@ -58,5 +58,13 @@ class RAT extends ErythModule {
         }
     }
 
-    // TODO: Commit && Redirect
+    // Commit
+    val wr_cmt = io.wr_cmt
+    for (i <- 0 until CommitWidth) {
+        when(wr_cmt(i).valid) {
+            arch_rat(wr_cmt(i).bits.a_reg) := wr_cmt(i).bits.p_reg
+        }
+    }
+
+    // TODO: Redirect
 }

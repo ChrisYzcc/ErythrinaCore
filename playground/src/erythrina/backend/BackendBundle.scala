@@ -5,6 +5,7 @@ import chisel3.util._
 import erythrina.ErythBundle
 import erythrina.frontend.{FuType, FuOpType, InstInfo}
 import erythrina.backend.rob.ROBPtr
+import erythrina.memblock.lsq.{LQPtr, SQPtr}
 
 class InstrState extends Bundle {
     val fetched = Bool()
@@ -47,18 +48,23 @@ class InstExInfo extends ErythBundle {
 
     val rf_wen = Bool() 
 
-    // state
+    // instruction state
     val state = new InstrState
 
     // result
     val res = UInt(XLEN.W)
 
-    // robidx
+    // idx
     val robPtr = new ROBPtr
+    val lqPtr = new LQPtr
+    val sqPtr = new SQPtr
 
     // branch prediction
     val bpu_taken = Bool()      // BPU prediction result
     val bpu_target = UInt(XLEN.W)
+
+    val real_taken = Bool()     // real branch result
+    val real_target = UInt(XLEN.W)
 
     def fromInstInfo(inst_info: InstInfo) = {
         this := 0.U.asTypeOf(new InstExInfo)

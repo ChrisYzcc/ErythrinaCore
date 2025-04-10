@@ -5,7 +5,7 @@ import chisel3.util._
 import erythrina.ErythModule
 import erythrina.backend.InstExInfo
 
-class Rename extends ErythModule {
+class RenameModule extends ErythModule {
     val io = IO(new Bundle {
         val rename_req = Vec(RenameWidth, Flipped(ValidIO(new InstExInfo)))
         val rename_rsp = Vec(RenameWidth, ValidIO(new InstExInfo))
@@ -27,6 +27,9 @@ class Rename extends ErythModule {
         // To FreeList
         val fl_req = Vec(RenameWidth, Flipped(DecoupledIO()))
         val fl_rsp = Vec(RenameWidth, Flipped(UInt(PhyRegAddrBits.W)))
+
+        // To BusyTable
+        val bt_alloc = Vec(RenameWidth, ValidIO(UInt(PhyRegAddrBits.W)))
     })
 
     val (rs1, rs2, rd) = (io.rs1, io.rs2, io.rd)
@@ -34,6 +37,7 @@ class Rename extends ErythModule {
     val wr_phy = io.wr_phy
     val (rename_req, rename_rsp) = (io.rename_req, io.rename_rsp)
     val (fl_req, fl_rsp) = (io.fl_req, io.fl_rsp)
+    val bt_alloc = io.bt_alloc
 
     // Req to RAT
     for (i <- 0 until RenameWidth) {
@@ -104,13 +108,16 @@ class Rename extends ErythModule {
 
     // Response
     for (i <- 0 until RenameWidth) {
-        val rsp_instExInfo = rename_req(i).bits
+        val rsp_instExInfo = WireInit(rename_req(i).bits)
 
         rsp_instExInfo.p_rs1 := final_rs1(i)
         rsp_instExInfo.p_rs2 := final_rs2(i)
         rsp_instExInfo.p_rd  := new_dst(i)
 
-        rename_rsp(i).valid := fl_req(i).fire
+        rename_rsp(i).valid := !fl_req(i).valid || fl_req(i).ready
         rename_rsp(i).bits := rsp_instExInfo
+
+        bt_alloc(i).valid := rename_req(i).valid && rename_req(i).bits.rf_wen
+        bt_alloc(i).bits := new_dst(i)
     }
 }

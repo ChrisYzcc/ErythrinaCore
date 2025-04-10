@@ -11,8 +11,13 @@ class ROB extends ErythModule {
         val alloc_req = Vec(DispatchWidth, Flipped(DecoupledIO(new InstExInfo)))
         val alloc_rsp = Vec(DispatchWidth, Output(new ROBPtr))
 
+        val alloc_upt = Vec(DispatchWidth, Flipped(ValidIO(new InstExInfo)))    // update LQPtr, SQPtr
+
         // fu commit
         val fu_commit = Vec(CommitWidth, Flipped(ValidIO(new InstExInfo)))
+
+        // rob commit
+        val rob_commit = Vec(CommitWidth, ValidIO(new InstExInfo))
 
         // to RegFile
         val reg_write = Vec(CommitWidth, ValidIO(new Bundle{
@@ -54,6 +59,18 @@ class ROB extends ErythModule {
         }
     }
 
+    // dispatch update
+    val dispatch_update = io.alloc_upt
+    for (i <- 0 until DispatchWidth) {
+        val v = dispatch_update(i).valid
+        val info = dispatch_update(i).bits
+        val ptr = info.robPtr
+
+        when (v) {
+            entries(ptr.value) := info
+        }
+    }
+
     // Alloc (enq)
     val (alloc_req, alloc_rsp) = (io.alloc_req, io.alloc_rsp)
     val alloc_needEnq = Wire(Vec(DispatchWidth, Bool()))
@@ -87,8 +104,7 @@ class ROB extends ErythModule {
     val commit_needDeq = Wire(Vec(CommitWidth, Bool()))
     val commit_canDeq = Wire(Vec(CommitWidth, Bool()))
     for (i <- 0 until CommitWidth) {
-        val index = PopCount(commit_needDeq.take(i))
-        val ptr = commitPtrExt(index)
+        val ptr = commitPtrExt(i)
 
         val prev_has_unfinished = commit_needDeq.take(i).map(!_).reduce(_ || _)
 
@@ -115,4 +131,10 @@ class ROB extends ErythModule {
     }
     val cmtNum = PopCount(commit_canDeq)
     commitPtrExt.foreach{case x => when (commit_canDeq.asUInt.orR) {x := x + cmtNum}}
+
+    // Rob Commit Info
+    for (i <- 0 until CommitWidth) {
+        io.rob_commit(i).valid := commit_canDeq(i)
+        io.rob_commit(i).bits := entries(commitPtrExt(i).value)
+    }
 }

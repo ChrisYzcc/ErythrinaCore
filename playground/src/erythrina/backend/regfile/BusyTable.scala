@@ -13,7 +13,7 @@ class BusyTable extends ErythModule {
             val rs2_busy = Output(Bool())
         })
 
-        val alloc = Vec(RenameWidth, Flipped(ValidIO(UInt(PhyRegAddrBits.W))))
+        val alloc = Vec(DispatchWidth, Flipped(ValidIO(UInt(PhyRegAddrBits.W))))
         val free  = Vec(CommitWidth, Flipped(ValidIO(UInt(PhyRegAddrBits.W))))
     })
 
@@ -25,17 +25,17 @@ class BusyTable extends ErythModule {
         io.readPorts(i).rs2_busy := busy_table(io.readPorts(i).rs2)
     }
 
-    // alloc
+    // alloc (from rename)
     for (i <- 0 until RenameWidth) {
         when(io.alloc(i).valid) {
-            busy_table(io.alloc(i).bits) := true.B
+            busy_table(io.alloc(i).bits) := false.B
         }
     }
 
-    // free
+    // free (from rob)
     for (i <- 0 until CommitWidth) {
         when(io.free(i).valid) {
-            busy_table(io.free(i).bits) := false.B
+            busy_table(io.free(i).bits) := true.B
         }
     }
     

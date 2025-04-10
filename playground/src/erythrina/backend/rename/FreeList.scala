@@ -92,7 +92,6 @@ class FreeList extends ErythModule {
         needDeq(i) := v
         canDeq(i) := needDeq(i) && deqPtr < enqPtrExt(0)
         
-        alloc_req(i).ready  := canDeq(i)
         alloc_rsp(i) := free_list(deqPtr.value)
     }
     val deqNum = PopCount(canDeq)
@@ -100,6 +99,7 @@ class FreeList extends ErythModule {
         case (a, b) => a || !b.valid
     }.reduce(_ && _)
     deqPtrExt.foreach{case x => when (all_canDeq) {x := x + deqNum}}
+    alloc_req.foreach{case x => x.ready := all_canDeq}
 
     // TODO: Redirect?
 }
