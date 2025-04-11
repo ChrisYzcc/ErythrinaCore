@@ -53,6 +53,8 @@ class InstExInfo extends ErythBundle {
 
     // result
     val res = UInt(XLEN.W)
+    val st_addr = UInt(XLEN.W)
+    val st_mask = UInt(MASKLEN.W)
 
     // idx
     val robPtr = new ROBPtr
