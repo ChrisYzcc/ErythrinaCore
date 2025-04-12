@@ -16,7 +16,8 @@ class FTQ extends ErythModule {
 
         val decode_req  = DecoupledIO(new InstFetchBlock)               // to IDU, deq
     
-        // redirect?
+        // flush
+        val flush = Input(Bool())
     })
 
     class Ptr extends CircularQueuePtr[Ptr](FTQSize) {
@@ -57,7 +58,7 @@ class FTQ extends ErythModule {
     val decode_req = io.decode_req
     for (i <- 0 until FTQSize) {
         val entry = entries(i)
-        decode_req.valid := predicted(i) && fetched(i) && deqPtr === i.U
+        decode_req.valid := predicted(i) && fetched(i) && deqPtr === i.U && !io.flush
         decode_req.bits := entry
     }
     when (decode_req.fire) {
@@ -66,7 +67,7 @@ class FTQ extends ErythModule {
 
     // fetch req
     val fetch_req = io.fetch_req
-    fetch_req.valid := enq_req.valid
+    fetch_req.valid := enq_req.valid && !io.flush
     fetch_req.bits := enq_entry
 
     // fetch resp
@@ -82,13 +83,23 @@ class FTQ extends ErythModule {
     val pred_req = io.pred_req
     val pred_rsp = io.pred_rsp
     
-    pred_req.valid := fetch_resp.fire
+    pred_req.valid := fetch_resp.fire && !io.flush
     pred_req.bits := fetch_entry
 
     when (pred_rsp.valid) {
         val pred_entry = pred_rsp.bits
         entries(pred_entry.ftqIdx) := pred_entry
         predicted(pred_entry.ftqIdx) := true.B
+    }
+
+    // flush
+    when (io.flush) {
+        enqPtrExt := 0.U.asTypeOf(new Ptr)
+        deqPtrExt := 0.U.asTypeOf(new Ptr)
+        for (i <- 0 until FTQSize) {
+            fetched(i) := false.B
+            predicted(i) := false.B
+        }
     }
 }
 

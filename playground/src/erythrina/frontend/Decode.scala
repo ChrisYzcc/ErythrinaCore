@@ -124,6 +124,8 @@ class Decoder extends ErythModule with InstrType{
     rsp_instExInfo.src2_ready := src2_type =/= SrcType.reg || rs2 === 0.U
     rsp_instExInfo.rf_wen := rf_wen
 
+    rsp_instExInfo.speculative := fuType =/= FuType.csr
+
     out.valid := in.valid
     out.bits := rsp_instExInfo
 }

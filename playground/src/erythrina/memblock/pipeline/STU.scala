@@ -65,6 +65,7 @@ class STU extends ErythModule {
     cmt_instBlk.res := s1_st_data
     cmt_instBlk.addr := s1_st_addr
     cmt_instBlk.mask := s1_st_mask
+    cmt_instBlk.state.finished := true.B
 
     cmt.valid := s1_valid
     cmt.bits := cmt_instBlk

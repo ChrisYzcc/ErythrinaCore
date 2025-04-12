@@ -146,6 +146,7 @@ class LDU extends ErythModule {
     val cmt_instBlk = WireInit(req_inflight)
     cmt_instBlk.res := res
     cmt_instBlk.addr := addr_inflight
+    cmt_instBlk.state.finished := true.B
 
     io.ldu_cmt.valid := axi.r.fire && state === sRECV
     io.ldu_cmt.bits := cmt_instBlk

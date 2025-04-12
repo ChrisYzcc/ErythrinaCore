@@ -14,8 +14,13 @@ import erythrina.backend.rob.ROBPtr
 import difftest.DifftestInfos
 import erythrina.backend.issue.BypassInfo
 
-class BackEnd extends ErythModule {
+class Backend extends ErythModule {
     val io = IO(new Bundle {
+        val to_frontend = new Bundle {
+            val flush = Output(Bool())
+            val redirect = ValidIO(new Redirect)
+        }
+
         val from_frontend = Vec(RenameWidth, Flipped(DecoupledIO(new InstExInfo)))
 
         // TODO: redirect to frontend
@@ -43,7 +48,7 @@ class BackEnd extends ErythModule {
             val stu_info = Input(new EXUInfo)
             val stu_cmt = Flipped(ValidIO(new InstExInfo))
 
-            val lq_exc_infos = Vec(LoadQueSize, Flipped(ValidIO(new ROBPtr)))
+            val lq_except_infos = Vec(LoadQueSize, Flipped(ValidIO(new ROBPtr)))
         }
 
         val difftest = Vec(CommitWidth, ValidIO(new DifftestInfos))
@@ -147,4 +152,15 @@ class BackEnd extends ErythModule {
     rob.io.bt_free_req <> busyTable.io.free
     rob.io.fl_free_req <> freelist.io.free_req
     rob.io.difftest <> io.difftest
+    rob.io.lq_except_infos <> io.from_memblock.lq_except_infos
+
+    // for Speculative
+    intISQ.io.last_robPtr.valid := true.B
+    intISQ.io.last_robPtr.bits := rob.io.last_robPtr
+    ldISQ.io.last_robPtr <> DontCare
+    stISQ.io.last_robPtr <> DontCare
+
+    /* --------------- Flush & Redirect -------------- */
+    io.to_frontend.flush := rob.io.flush
+    io.to_frontend.redirect <> rob.io.redirect
 }

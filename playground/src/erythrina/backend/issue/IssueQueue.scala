@@ -6,6 +6,7 @@ import erythrina.ErythModule
 import erythrina.backend.InstExInfo
 import erythrina.frontend.FuType
 import erythrina.backend.fu.EXUInfo
+import erythrina.backend.rob.ROBPtr
 
 class IssueQueue(exu_num:Int, name:String, size:Int) extends ErythModule {
     val io = IO(new Bundle {
@@ -15,6 +16,8 @@ class IssueQueue(exu_num:Int, name:String, size:Int) extends ErythModule {
         val exu_info = Vec(exu_num, Input(new EXUInfo))
 
         val bypass = Vec(BypassWidth, Flipped(ValidIO(new BypassInfo)))
+
+        val last_robPtr = Flipped(ValidIO(new ROBPtr))  // for non-speculative
     })
 
     val entries = RegInit(VecInit(Seq.fill(size)(0.U.asTypeOf(new InstExInfo))))
@@ -64,7 +67,7 @@ class IssueQueue(exu_num:Int, name:String, size:Int) extends ErythModule {
 
     val ready_vec = entries.zip(valids).map{
         case (e, v) =>
-            v && e.src1_ready && e.src2_ready
+            v && e.src1_ready && e.src2_ready && (e.speculative || io.last_robPtr.valid && e.robPtr === io.last_robPtr.bits)
     }
     val tot_ready_cnt = PopCount(ready_vec)
 

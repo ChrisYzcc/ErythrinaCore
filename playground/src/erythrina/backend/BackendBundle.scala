@@ -18,7 +18,11 @@ class RobException extends ErythBundle {
     val store2load = Bool() // store-load exception
     val bpu_mispredict = Bool() // branch mispredict
 
-    val nxt_pc = UInt(XLEN.W) // next pc
+    val csr_ebreak = Bool()
+
+    def has_exception = {
+        store2load || bpu_mispredict || csr_ebreak
+    }
 }
 
 class InstExInfo extends ErythBundle {
@@ -58,6 +62,9 @@ class InstExInfo extends ErythBundle {
     // instruction state
     val state = new InstrState
 
+    // speculative?
+    val speculative = Bool()
+
     // result
     val res = UInt(XLEN.W)
     val addr = UInt(XLEN.W)
@@ -86,4 +93,9 @@ class InstExInfo extends ErythBundle {
 
         this.bpu_taken := inst_info.bpu_taken
     }
+}
+
+class Redirect extends ErythBundle {
+    val pc = UInt(XLEN.W)   // origin pc, for training BPU?
+    val npc = UInt(XLEN.W)  // next pc
 }

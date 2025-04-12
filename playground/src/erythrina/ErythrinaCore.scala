@@ -3,8 +3,8 @@ package erythrina
 import chisel3._
 import chisel3.util._
 import bus.axi4._
-import erythrina.frontend.FrontEnd
-import erythrina.backend.BackEnd
+import erythrina.frontend.Frontend
+import erythrina.backend.Backend
 import erythrina.memblock.Memblock
 import difftest.DifftestInfos
 
@@ -21,8 +21,8 @@ class ErythrinaCore extends ErythModule {
 
     val (i_axi, d_axi) = (io.i_axi, io.d_axi)
 
-    val frontend = Module(new FrontEnd)
-    val backend = Module(new BackEnd)
+    val frontend = Module(new Frontend)
+    val backend = Module(new Backend)
     val memblock = Module(new Memblock)
 
     frontend.io.ar <> i_axi.ar
@@ -38,6 +38,7 @@ class ErythrinaCore extends ErythModule {
     memblock.io.axi.stu.b <> d_axi.b
 
     frontend.io.to_backend <> backend.io.from_frontend
+    frontend.io.from_backend <> backend.io.to_frontend
     
     backend.io.to_memblock <> memblock.io.from_backend
     backend.io.difftest <> io.difftest

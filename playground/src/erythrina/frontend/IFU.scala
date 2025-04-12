@@ -7,6 +7,8 @@ import bus.axi4._
 
 class IFU extends ErythModule {
     val io = IO(new Bundle {
+        val flush = Input(Bool())
+
         val fetch_req = Flipped(DecoupledIO(new InstFetchBlock)) // from FTQ
         val fetch_rsp = ValidIO(new InstFetchBlock) // to FTQ
 
@@ -41,7 +43,7 @@ class IFU extends ErythModule {
         }
     }
 
-    axi.ar.valid        := fetch_req.valid && state === sREQ
+    axi.ar.valid        := fetch_req.valid && state === sREQ && !io.flush
     axi.ar.bits         := 0.U.asTypeOf(new AXI4LiteBundleA)
     axi.ar.bits.addr    := Mux(fetch_req.bits.instVec(0).valid, fetch_req.bits.instVec(0).pc, fetch_req.bits.instVec(1).pc)     // TODO: alignment?
     

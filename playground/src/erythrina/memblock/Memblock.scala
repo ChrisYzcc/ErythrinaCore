@@ -33,7 +33,7 @@ class Memblock extends ErythModule {
             val stu_info = Output(new EXUInfo)
             val stu_cmt = ValidIO(new InstExInfo)
 
-            val lq_exc_infos = Vec(LoadQueSize, ValidIO(new ROBPtr))
+            val lq_except_infos = Vec(LoadQueSize, ValidIO(new ROBPtr))
         }
 
         val axi = new Bundle {
@@ -93,5 +93,5 @@ class Memblock extends ErythModule {
 
     loadQueue.io.st_req.valid := io.from_backend.stu_req.valid
     loadQueue.io.st_req.bits := io.from_backend.stu_req.bits
-    loadQueue.lq_exc_infos <> io.to_backend.lq_exc_infos
+    loadQueue.io.lq_except_infos <> io.to_backend.lq_except_infos
 }

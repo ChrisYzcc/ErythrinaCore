@@ -3,9 +3,13 @@ package erythrina.frontend
 import chisel3._
 import chisel3.util._
 import erythrina.ErythModule
+import erythrina.backend.Redirect
 
 class BPU extends ErythModule {
     val io = IO(new Bundle {
+        val flush = Input(Bool())
+        val redirect = Flipped(ValidIO(new Redirect))
+
         val ftq_enq_req = DecoupledIO(new InstFetchBlock)        // to FTQ, enq
         
         // from FTQ
@@ -38,11 +42,23 @@ class BPU extends ErythModule {
     // generage new block
     val new_block = WireInit(0.U.asTypeOf(new InstFetchBlock))
     for (i <- 0 until FetchWidth) {
-        new_block.instVec(i).valid := true.B
+        new_block.instVec(i).valid := true.B && !io.flush
         new_block.instVec(i).pc := base_pc + (i.U << 2)
+    }
+
+    // redirect block
+    val redirect_block = WireInit(0.U.asTypeOf(new InstFetchBlock))
+    for (i <- 0 until FetchWidth) {
+        redirect_block.instVec(i).valid := true.B
+        redirect_block.instVec(i).pc := io.redirect.bits.npc + (i.U << 2)
     }
     
     val ftq_enq_req = io.ftq_enq_req
-    ftq_enq_req.valid   := RegNext(pred_req.valid) || RegNext(reset.asBool)
-    ftq_enq_req.bits    := Mux(RegNext(pred_req.valid), RegNext(new_block), init_block)
+    ftq_enq_req.valid   := RegNext(pred_req.valid) || RegNext(reset.asBool) || io.redirect.valid
+    ftq_enq_req.bits    := Mux(io.redirect.valid,
+                                redirect_block,
+                                Mux(RegNext(pred_req.valid),
+                                    RegNext(new_block),
+                                    init_block)
+                            )
 }

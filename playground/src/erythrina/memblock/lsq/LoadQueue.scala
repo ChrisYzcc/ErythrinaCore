@@ -17,7 +17,7 @@ class LoadQueue extends ErythModule {
         val rob_commit = Vec(CommitWidth, Flipped(ValidIO(new LQPtr)))
 
         // to rob
-        val lq_exc_infos = Vec(LoadQueSize, ValidIO(new ROBPtr))
+        val lq_except_infos = Vec(LoadQueSize, ValidIO(new ROBPtr))
 
         // store-load exception detect
         val st_req = Flipped(ValidIO(new InstExInfo))
@@ -93,7 +93,7 @@ class LoadQueue extends ErythModule {
     }
     
     // Store-Load exception detect
-    val lq_exc_infos = io.lq_exc_infos
+    val lq_exc_infos = io.lq_except_infos
     val st_req = io.st_req
     val st_addr = st_req.bits.src1 + st_req.bits.imm
     when (st_req.valid) {

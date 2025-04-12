@@ -6,6 +6,8 @@ import erythrina.ErythModule
 import erythrina.backend.InstExInfo
 import difftest.DifftestInfos
 import erythrina.frontend.FuType
+import erythrina.backend.Redirect
+import utils.LookupTree
 
 class ROB extends ErythModule {
     val io = IO(new Bundle {
@@ -17,6 +19,9 @@ class ROB extends ErythModule {
 
         // fu commit
         val fu_commit = Vec(CommitWidth, Flipped(ValidIO(new InstExInfo)))
+
+        // Store-to-Load Update
+        val lq_except_infos = Vec(LoadQueSize, Flipped(ValidIO(new ROBPtr)))
 
         // rob commit
         val rob_commit = Vec(CommitWidth, ValidIO(new InstExInfo))
@@ -42,8 +47,18 @@ class ROB extends ErythModule {
         // difftest
         val difftest = Vec(CommitWidth, ValidIO(new DifftestInfos))
 
+        // bottom ROBPtr
+        val last_robPtr = Output(new ROBPtr)
+
+        // flush
+        val flush = Output(Bool())
+
         // redirect
+        val redirect = ValidIO(new Redirect)
     })
+
+    // Need Flush
+    val need_flush = RegInit(false.B)
 
     // entries
     val entries = RegInit(VecInit(Seq.fill(ROBSize)(0.U.asTypeOf(new InstExInfo))))
@@ -80,6 +95,9 @@ class ROB extends ErythModule {
     val (alloc_req, alloc_rsp) = (io.alloc_req, io.alloc_rsp)
     val alloc_needEnq = Wire(Vec(DispatchWidth, Bool()))
     val alloc_canEnq = Wire(Vec(DispatchWidth, Bool()))
+    val all_canAlloc = alloc_req.map{
+        case e => !e.valid || e.ready
+    }.reduce(_ && _)
 
     for (i <- 0 until DispatchWidth) {
         val v = alloc_req(i).valid
@@ -90,7 +108,7 @@ class ROB extends ErythModule {
 
         alloc_needEnq(i) := v
         alloc_canEnq(i) := v && ptr >= commitPtrExt(0)
-        when (alloc_canEnq(i)) {
+        when (alloc_canEnq(i) && all_canAlloc) {
             entries(ptr.value) := info
         }
 
@@ -98,7 +116,7 @@ class ROB extends ErythModule {
         alloc_rsp(i) := ptr
     }
     val allocNum = PopCount(alloc_needEnq)
-    allocPtrExt.foreach{case x => when (alloc_canEnq.asUInt.orR) {x := x + allocNum}}
+    allocPtrExt.foreach{case x => when (all_canAlloc) {x := x + allocNum}}
 
     // Commit (deq)
     val reg_write = io.reg_write
@@ -113,7 +131,7 @@ class ROB extends ErythModule {
 
         val prev_has_unfinished = if (i == 0) false.B else commit_needDeq.take(i).map(!_).reduce(_ || _)
 
-        commit_needDeq(i) := entries(ptr.value).state.finished
+        commit_needDeq(i) := entries(ptr.value).state.finished && !entries(ptr.value).exception.has_exception
         commit_canDeq(i)  := commit_needDeq(i) && ptr < allocPtrExt(0) && !prev_has_unfinished
 
         // RegWrite
@@ -137,11 +155,59 @@ class ROB extends ErythModule {
     val cmtNum = PopCount(commit_canDeq)
     commitPtrExt.foreach{case x => when (commit_canDeq.asUInt.orR) {x := x + cmtNum}}
 
+    // handle exception and redirect
+    val redirect = io.redirect
+    val bottom_ptr = commitPtrExt(0)
+    
+    redirect.valid := entries(bottom_ptr.value).state.finished && entries(bottom_ptr.value).exception.has_exception
+    redirect.bits.pc := entries(bottom_ptr.value).pc
+    redirect.bits.npc := Mux1H(Seq(
+        entries(bottom_ptr.value).exception.bpu_mispredict -> entries(bottom_ptr.value).bpu_target,
+        entries(bottom_ptr.value).exception.csr_ebreak -> 0.U,
+        entries(bottom_ptr.value).exception.store2load -> entries(bottom_ptr.value).pc
+    ))
+
+    when (redirect.valid) {
+        need_flush := false.B
+        for (i <- 0 until DispatchWidth) {
+            allocPtrExt(i) := i.U.asTypeOf(new ROBPtr)
+        }
+        for (i <- 0 until CommitWidth) {
+            commitPtrExt(i) := i.U.asTypeOf(new ROBPtr)
+        }
+    }
+
     // Rob Commit Info
     for (i <- 0 until CommitWidth) {
         io.rob_commit(i).valid := commit_canDeq(i)
         io.rob_commit(i).bits := entries(commitPtrExt(i).value)
     }
+
+    // last robPtr
+    io.last_robPtr := commitPtrExt(0)
+
+    // Store-Load Exception Update
+    for (i <- 0 until LoadQueSize) {
+        val ptr = io.lq_except_infos(i)
+        when (ptr.valid) {
+            entries(ptr.bits.value).exception.store2load := true.B
+        }
+    }
+
+    // record the need_flush
+    for (i <- 0 until CommitWidth) {
+        when (fu_commit(i).valid && fu_commit(i).bits.exception.has_exception) {
+            need_flush := true.B
+        }
+    }
+    for (i <- 0 until LoadQueSize) {
+        val ptr = io.lq_except_infos(i)
+        when (ptr.valid) {
+            need_flush := true.B
+        }
+    }
+
+    io.flush := need_flush && !redirect.valid
 
     // difftest
     for (i <- 0 until CommitWidth) {

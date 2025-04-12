@@ -7,6 +7,7 @@ import erythrina.backend.InstExInfo
 
 class IDU extends ErythModule {
     val io = IO(new Bundle {
+        val flush = Input(Bool())
         val decode_req = Flipped(Decoupled(new InstFetchBlock))
         val decode_res = Vec(DecodeWidth, Decoupled(new InstExInfo))
     })
@@ -22,7 +23,7 @@ class IDU extends ErythModule {
 
         decoder.io.in := decode_req.bits.instVec(i)
 
-        decode_res.valid := decoder.io.out.valid
+        decode_res.valid := decoder.io.out.valid && !io.flush
         decode_res.bits := decoder.io.out.bits
     }
 

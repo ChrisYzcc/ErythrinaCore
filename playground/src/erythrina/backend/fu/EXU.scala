@@ -24,7 +24,7 @@ class BaseEXU extends ErythModule {
 class EXU0 extends BaseEXU {
     val alu = Module(new ALU)
     val bru = Module(new BRU)
-    // TODO: csr
+    val csr = Module(new CSR)
     
     val (req, cmt) = (io.req, io.cmt)
 
@@ -57,7 +57,10 @@ class EXU0 extends BaseEXU {
     val bru_target = bru.io.target
     val bru_rd_res = bru.io.rd_res
 
-    // TODO: CSR
+    csr.io.valid := req.valid && req.bits.fuType === FuType.csr
+    csr.io.src1 := req_instBlk.src1
+    csr.io.src2 := req_instBlk.src2
+    csr.io.csrop := req_instBlk.fuOpType
 
     // Commit
     val cmt_instBlk = WireInit(req_instBlk)
@@ -67,6 +70,10 @@ class EXU0 extends BaseEXU {
         FuType.alu -> alu_res,
         FuType.bru -> bru_rd_res
     ))
+
+    cmt_instBlk.state.finished := true.B
+    cmt_instBlk.exception.bpu_mispredict := bru_taken =/= req_instBlk.bpu_taken
+    cmt_instBlk.exception.csr_ebreak := csr.io.ebreak
 
     cmt.valid := req.valid
     cmt.bits := cmt_instBlk
@@ -99,6 +106,7 @@ class EXU1 extends BaseEXU {
     // Commit
     val cmt_instBlk = WireInit(req_instBlk)
     cmt_instBlk.res := alu_res
+    cmt_instBlk.state.finished := true.B
     
     cmt.valid := req.valid
     cmt.bits := cmt_instBlk
