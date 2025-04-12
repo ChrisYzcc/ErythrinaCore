@@ -36,7 +36,7 @@ class RDU extends ErythModule {
         }))
 
         // To FreeList
-        val fl_req = Vec(RenameWidth, Flipped(DecoupledIO()))
+        val fl_req = Vec(RenameWidth, DecoupledIO())    // get new phy reg
         val fl_rsp = Vec(RenameWidth, Flipped(UInt(PhyRegAddrBits.W)))
 
         // To BusyTable

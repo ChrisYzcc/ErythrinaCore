@@ -38,6 +38,6 @@ class RegFile(numReadPorts: Int, numWritePorts: Int) extends ErythModule {
             case (v, addr) =>
                 v && io.writePorts(i).valid && (addr === io.writePorts(i).bits.addr)
         }
-        assert(!same_addr.reduce(_ || _), s"Write port $i has same address as previous write ports")
+        if (i != 0) assert(!same_addr.reduce(_ || _), s"Write port $i has same address as previous write ports")
     }
 }

@@ -84,7 +84,11 @@ class IssueQueue(exu_num:Int, name:String, size:Int) extends ErythModule {
     }
 
     val handle_exu_idx = Wire(Vec(exu_num, UInt(log2Ceil(exu_num).W)))
-    for (i <- 0 until exu_num) {    // for the oldest exu_num instructions
+    for (i <- 0 until exu_num) {    // init
+        deq(i).valid := false.B
+        deq(i).bits := DontCare
+    }
+    for (i <- 0 until exu_num) {    // for the oldest $exu_num instructions
         val entry = entries(deq_idx(i))
         val valid = valids(deq_idx(i))
 

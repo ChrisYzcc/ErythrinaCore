@@ -1,3 +1,4 @@
+import top.SimTop
 object Elaborate extends App {
   val firtoolOptions = Array(
     "--lowering-options=" + List(
@@ -8,5 +9,5 @@ object Elaborate extends App {
       "locationInfoStyle=wrapInAtSquareBracket"
     ).reduce(_ + "," + _)
   )
-  //circt.stage.ChiselStage.emitSystemVerilogFile(new gcd.GCD(), args, firtoolOptions)
+  circt.stage.ChiselStage.emitSystemVerilogFile(new SimTop, args, firtoolOptions)
 }

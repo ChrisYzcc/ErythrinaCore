@@ -133,7 +133,6 @@ class DispatchModule extends ErythModule {
         io.bt_res(i).rs1 := issueBlk.p_rs1
         io.bt_res(i).rs2 := issueBlk.p_rs2
 
-
         issueBlk.src1 := Mux(instExBlk.src1_ready, instExBlk.src1, io.rs1(i).data)
         issueBlk.src2 := Mux(instExBlk.src2_ready, instExBlk.src2, io.rs2(i).data)
         issueBlk.src1_ready := instExBlk.src1_ready || !io.bt_res(i).rs1_busy
@@ -147,7 +146,15 @@ class DispatchModule extends ErythModule {
         ld_issue_req(i).valid := states(i) === sDispatch && is_ldu
         ld_issue_req(i).bits := issueBlk
         st_issue_req(i).valid := states(i) === sDispatch && is_stu
-        ld_issue_req(i).bits := issueBlk
+        st_issue_req(i).bits := issueBlk
+
+        // update
+        rob_alloc_upt(i).valid := states(i) === sDispatch
+        rob_alloc_upt(i).bits := issueBlk
+        lq_alloc_upt(i).valid := states(i) === sDispatch && need_lqPtr
+        lq_alloc_upt(i).bits := issueBlk
+        sq_alloc_upt(i).valid := states(i) === sDispatch && need_sqPtr
+        sq_alloc_upt(i).bits := issueBlk
     }
     
 }

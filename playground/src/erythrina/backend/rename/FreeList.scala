@@ -7,7 +7,7 @@ import utils.CircularQueuePtr
 
 class FreeList extends ErythModule {
     val io = IO(new Bundle {
-        val alloc_req = Vec(RenameWidth, DecoupledIO())
+        val alloc_req = Vec(RenameWidth, Flipped(DecoupledIO()))
         val alloc_rsp = Vec(RenameWidth, UInt(PhyRegAddrBits.W))
         val free_req = Vec(CommitWidth, Flipped(ValidIO(UInt(PhyRegAddrBits.W))))
     })
@@ -84,7 +84,7 @@ class FreeList extends ErythModule {
     val canDeq = Wire(Vec(RenameWidth, Bool()))
 
     for (i <- 0 until RenameWidth) {
-        val v = alloc_req(i)
+        val v = alloc_req(i).valid
 
         val index = PopCount(needDeq.take(i))
         val deqPtr = deqPtrExt(index)

@@ -22,7 +22,7 @@ class STU extends ErythModule {
     val st_fwd = io.stu_fwd
 
     // EXU Info
-    val handler_vec = WireInit(Vec(FuType.num, false.B))
+    val handler_vec = WireInit(VecInit(Seq.fill(FuType.num)(false.B)))
     handler_vec(FuType.stu) := true.B
 
     val exu_info = io.exu_info

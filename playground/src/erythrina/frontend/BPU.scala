@@ -14,7 +14,7 @@ class BPU extends ErythModule {
     })
 
     // init InstFetchBlock
-    val init_block = WireInit(new InstFetchBlock)
+    val init_block = WireInit(0.U.asTypeOf(new InstFetchBlock))
     init_block.instVec(0).valid := true.B
     init_block.instVec(0).pc   := RESETVEC.U
     init_block.instVec(1).valid := true.B
@@ -36,7 +36,7 @@ class BPU extends ErythModule {
     pred_rsp.bits := RegNext(resp_block)
     
     // generage new block
-    val new_block = WireInit(new InstFetchBlock)
+    val new_block = WireInit(0.U.asTypeOf(new InstFetchBlock))
     for (i <- 0 until FetchWidth) {
         new_block.instVec(i).valid := true.B
         new_block.instVec(i).pc := base_pc + (i.U << 2)

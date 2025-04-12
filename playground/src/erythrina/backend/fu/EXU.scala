@@ -29,7 +29,7 @@ class EXU0 extends BaseEXU {
     val (req, cmt) = (io.req, io.cmt)
 
     // EXU Info
-    val handler_vec = WireInit(Vec(FuType.num, false.B))
+    val handler_vec = WireInit(VecInit(Seq.fill(FuType.num)(false.B)))
     handler_vec(FuType.alu) := true.B
     handler_vec(FuType.bru) := true.B
     handler_vec(FuType.csr) := true.B
@@ -79,7 +79,7 @@ class EXU1 extends BaseEXU {
     val (req, cmt) = (io.req, io.cmt)
 
     // EXU Info
-    val handler_vec = WireInit(Vec(FuType.num, false.B))
+    val handler_vec = WireInit(VecInit(Seq.fill(FuType.num)(false.B)))
     handler_vec(FuType.alu) := true.B
 
     val exu_info = io.exu_info

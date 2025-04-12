@@ -28,7 +28,7 @@ class LDU extends ErythModule {
     })
 
     def getNewestFwd(fwd: Seq[ValidIO[StoreFwdBundle]], addr: UInt, ptr: ROBPtr): Valid[StoreFwdBundle] = {
-        val res = Valid(new StoreFwdBundle)
+        val res = Wire(Valid(new StoreFwdBundle))
         if (fwd.length == 0) {
             res.valid := false.B
             res.bits := 0.U.asTypeOf(new StoreFwdBundle)
@@ -84,6 +84,8 @@ class LDU extends ErythModule {
         }
     }
 
+    req.ready := state === sREQ
+
     // AXI
     val addr = req.bits.src1 + req.bits.imm
     axi.ar.valid        := req.valid && state === sREQ
@@ -100,7 +102,7 @@ class LDU extends ErythModule {
     val sq_newest_fwd = getNewestFwd(sq_fwd, addr_inflight, req_inflight.robPtr)
     val stu_newest_fwd = getNewestFwd(stu_fwd, addr_inflight, req_inflight.robPtr)
 
-    val final_fwd = Valid(new StoreFwdBundle)
+    val final_fwd = Wire(Valid(new StoreFwdBundle))
     final_fwd.valid := sq_newest_fwd.valid || stu_newest_fwd.valid
     val cmp = sq_newest_fwd.bits.robPtr > stu_newest_fwd.bits.robPtr   // storequeue is newer
     final_fwd.bits := Mux(cmp,
@@ -150,7 +152,7 @@ class LDU extends ErythModule {
 
     // EXU Info
     val exu_info = io.exu_info
-    val handler_vec = WireInit(Vec(FuType.num, false.B))
+    val handler_vec = WireInit(VecInit(Seq.fill(FuType.num)(false.B)))
     handler_vec(FuType.ldu) := true.B
 
     exu_info.busy := state === sREQ

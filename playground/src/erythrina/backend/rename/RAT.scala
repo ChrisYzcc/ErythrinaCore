@@ -31,13 +31,11 @@ class RAT extends ErythModule {
     })
 
     val arch_rat = Reg(Vec(ArchRegNum, UInt(PhyRegAddrBits.W)))
-    val phy_rat = Reg(Vec(PhyRegNum, UInt(ArchRegAddrBits.W)))
+    val phy_rat = Reg(Vec(ArchRegNum, UInt(ArchRegAddrBits.W)))
 
     when (reset.asBool) {
         for (i <- 0 until ArchRegNum) {
             arch_rat(i) := i.U
-        }
-        for (i <- 0 until PhyRegNum) {
             phy_rat(i) := i.U
         }
     }

@@ -91,6 +91,7 @@ class Memblock extends ErythModule {
         loadQueue.io.rob_commit(i).bits := io.from_backend.rob_commits(i).bits.lqPtr
     }
 
-    loadQueue.io.st_req <> io.from_backend.stu_req
+    loadQueue.io.st_req.valid := io.from_backend.stu_req.valid
+    loadQueue.io.st_req.bits := io.from_backend.stu_req.bits
     loadQueue.lq_exc_infos <> io.to_backend.lq_exc_infos
 }

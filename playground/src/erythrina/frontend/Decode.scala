@@ -51,7 +51,7 @@ object Instructions extends InstrType {
 class Decoder extends ErythModule with InstrType{
 	val io = IO(new Bundle {
 		val in = Input(new InstInfo)
-		val out = Flipped(ValidIO(new InstExInfo))
+		val out = ValidIO(new InstExInfo)
 	})
 
 	val (in, out) = (io.in, io.out)
@@ -104,7 +104,7 @@ class Decoder extends ErythModule with InstrType{
 
     val rf_wen = ~(instr_type === TypeB || instr_type === TypeS || instr_type === TypeN)
 
-	val rsp_instExInfo = WireInit(new InstExInfo)
+	val rsp_instExInfo = WireInit(0.U.asTypeOf(new InstExInfo))
 	rsp_instExInfo.fromInstInfo(in)
 
 	rsp_instExInfo.a_rs1 := rs1

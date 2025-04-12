@@ -15,7 +15,7 @@ trait HasErythCoreParams {
     val RenameWidth = DecodeWidth
     val DispatchWidth = RenameWidth
     val CommitWidth = 4 // EXU0, EXU1, LDU, STU
-    val BypassWidth = 3
+    val BypassWidth = 4
 
     val PAddrBits = XLEN
     val DataBits = XLEN

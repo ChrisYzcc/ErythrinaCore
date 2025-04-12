@@ -147,6 +147,8 @@ class StoreQueue extends ErythModule {
     axi.w.bits.data := entries(deqPtrExt.value).res
     axi.w.bits.strb := entries(deqPtrExt.value).mask
 
+    axi.b.ready := state === sACK
+
     // deq
     when (axi.b.fire) {
         valids(deqPtrExt.value) := false.B

@@ -27,14 +27,14 @@ object AXI4MuxDummy {
 class AXI4ArbiterNto1[T <: AXI4Lite](n:Int, _type: T = new AXI4) extends Module{
     val io = IO(new Bundle {
         val in  = Vec(n, Flipped(_type))
-        val out = new AXI4
+        val out = _type
     })
 
     /*---------- Read Channel ----------*/
     val rd_inflight = RegInit(0.B)
     when (io.out.ar.valid){
         rd_inflight := 1.B
-    }.elsewhen(io.out.r.fire & io.out.r.bits.last){
+    }.elsewhen(io.out.r.fire){
         rd_inflight := 0.B
     }
 
@@ -48,7 +48,7 @@ class AXI4ArbiterNto1[T <: AXI4Lite](n:Int, _type: T = new AXI4) extends Module{
     val ar_has_done = RegInit(0.B)
     when (io.out.ar.fire){
         ar_has_done := 1.B
-    }.elsewhen(io.out.r.fire & io.out.r.bits.last){
+    }.elsewhen(io.out.r.fire){
         ar_has_done := 0.B
     }
 
@@ -78,7 +78,7 @@ class AXI4ArbiterNto1[T <: AXI4Lite](n:Int, _type: T = new AXI4) extends Module{
         aw_has_done := 0.B
     }
 
-    when (io.out.w.fire & io.out.w.bits.last){
+    when (io.out.w.fire){
         w_has_done := 1.B
     }.elsewhen(io.out.b.fire){
         w_has_done := 0.B

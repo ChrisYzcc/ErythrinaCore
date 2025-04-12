@@ -25,7 +25,7 @@ class RenameModule extends ErythModule {
         }))
 
         // To FreeList
-        val fl_req = Vec(RenameWidth, Flipped(DecoupledIO()))
+        val fl_req = Vec(RenameWidth, DecoupledIO())
         val fl_rsp = Vec(RenameWidth, Flipped(UInt(PhyRegAddrBits.W)))
 
         // To BusyTable
@@ -49,7 +49,7 @@ class RenameModule extends ErythModule {
     // Req to FreeList
     val new_dst = Wire(Vec(RenameWidth, UInt(PhyRegAddrBits.W)))
     for (i <- 0 until RenameWidth) {
-        fl_req(i) := rename_req(i).valid && rename_req(i).bits.rd_need_rename
+        fl_req(i).valid := rename_req(i).valid && rename_req(i).bits.rd_need_rename
         new_dst(i) := fl_rsp(i)
     }
 

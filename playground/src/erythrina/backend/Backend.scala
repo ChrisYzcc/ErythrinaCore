@@ -12,6 +12,7 @@ import erythrina.backend.regfile.{RegFile, BusyTable}
 import erythrina.backend.fu.EXUInfo
 import erythrina.backend.rob.ROBPtr
 import difftest.DifftestInfos
+import erythrina.backend.issue.BypassInfo
 
 class BackEnd extends ErythModule {
     val io = IO(new Bundle {
@@ -62,6 +63,28 @@ class BackEnd extends ErythModule {
     val busyTable = Module(new BusyTable)
     val freelist = Module(new FreeList)
 
+    /* --------------  Bypass ------------- */
+    val bypass = Wire(Vec(BypassWidth, ValidIO(new BypassInfo)))
+    bypass(0).valid := exu0.cmt.valid && exu0.cmt.bits.rf_wen
+    bypass(0).bits.bypass_prd := exu0.cmt.bits.p_rd
+    bypass(0).bits.bypass_data := exu0.cmt.bits.res
+
+    bypass(1).valid := exu1.cmt.valid && exu1.cmt.bits.rf_wen
+    bypass(1).bits.bypass_prd := exu1.cmt.bits.p_rd
+    bypass(1).bits.bypass_data := exu1.cmt.bits.res
+
+    bypass(2).valid := io.from_memblock.ldu_cmt.valid && io.from_memblock.ldu_cmt.bits.rf_wen
+    bypass(2).bits.bypass_prd := io.from_memblock.ldu_cmt.bits.p_rd
+    bypass(2).bits.bypass_data := io.from_memblock.ldu_cmt.bits.res
+
+    bypass(3).valid := false.B      // STU don't write back
+    bypass(3).bits := DontCare
+
+    intISQ.io.bypass <> bypass
+    ldISQ.io.bypass <> bypass
+    stISQ.io.bypass <> bypass
+
+
     /* --------------- RDU -----------------*/
     rdu.io.req <> io.from_frontend
     // RDU <-> RAT
@@ -110,9 +133,10 @@ class BackEnd extends ErythModule {
 
     io.to_memblock.ldu_req <> ldISQ.io.deq(0)
     io.from_memblock.ldu_cmt <> rob.io.fu_commit(2)
+    io.from_memblock.ldu_info <> ldISQ.io.exu_info(0)
     io.to_memblock.stu_req <> stISQ.io.deq(0)
     io.from_memblock.stu_cmt <> rob.io.fu_commit(3)
-
+    io.from_memblock.stu_info <> stISQ.io.exu_info(0)
 
     /* --------------- RAT -----------------*/
     rat.io.wr_cmt <> rob.io.upt_arch_rat

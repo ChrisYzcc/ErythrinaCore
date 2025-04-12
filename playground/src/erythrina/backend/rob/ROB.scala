@@ -111,7 +111,7 @@ class ROB extends ErythModule {
     for (i <- 0 until CommitWidth) {
         val ptr = commitPtrExt(i)
 
-        val prev_has_unfinished = commit_needDeq.take(i).map(!_).reduce(_ || _)
+        val prev_has_unfinished = if (i == 0) false.B else commit_needDeq.take(i).map(!_).reduce(_ || _)
 
         commit_needDeq(i) := entries(ptr.value).state.finished
         commit_canDeq(i)  := commit_needDeq(i) && ptr < allocPtrExt(0) && !prev_has_unfinished
