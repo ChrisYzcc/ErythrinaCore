@@ -85,3 +85,37 @@ class AXI4Lite extends Bundle {
   val ar = Decoupled(new AXI4LiteBundleA)
   val r  = Flipped(Decoupled(new AXI4LiteBundleR))
 }
+
+// AXI4-full
+
+class AXI4BundleA(override val idBits: Int) extends AXI4LiteBundleA with AXI4HasId with AXI4HasUser {
+  val len   = Output(UInt(AXI4Params.lenBits.W))  // number of beats - 1
+  val size  = Output(UInt(AXI4Params.sizeBits.W)) // bytes in beat = 2^size
+  val burst = Output(UInt(AXI4Params.burstBits.W))
+  val lock  = Output(Bool())
+  val cache = Output(UInt(AXI4Params.cacheBits.W))
+  val qos   = Output(UInt(AXI4Params.qosBits.W))  // 0=no QoS, bigger = higher priority
+  // val region = UInt(width = 4) // optional
+
+  override def toPrintable: Printable = p"addr = 0x${Hexadecimal(addr)}, id = ${id}, len = ${len}, size = ${size}"
+}
+
+// id ... removed in AXI4
+class AXI4BundleW(override val dataBits: Int) extends AXI4LiteBundleW(dataBits) with AXI4HasLast {
+  override def toPrintable: Printable = p"data = ${Hexadecimal(data)}, wmask = 0x${strb}, last = ${last}"
+}
+class AXI4BundleB(override val idBits: Int) extends AXI4LiteBundleB with AXI4HasId with AXI4HasUser {
+  override def toPrintable: Printable = p"resp = ${resp}, id = ${id}"
+}
+class AXI4BundleR(override val dataBits: Int, override val idBits: Int) extends AXI4LiteBundleR(dataBits) with AXI4HasLast with AXI4HasId with AXI4HasUser {
+  override def toPrintable: Printable = p"resp = ${resp}, id = ${id}, data = ${Hexadecimal(data)}, last = ${last}"
+}
+
+
+class AXI4(val dataBits: Int = AXI4Params.dataBits, val idBits: Int = AXI4Params.idBits) extends AXI4Lite {
+  override val aw = Decoupled(new AXI4BundleA(idBits))
+  override val w  = Decoupled(new AXI4BundleW(dataBits))
+  override val b  = Flipped(Decoupled(new AXI4BundleB(idBits)))
+  override val ar = Decoupled(new AXI4BundleA(idBits))
+  override val r  = Flipped(Decoupled(new AXI4BundleR(dataBits, idBits)))
+}

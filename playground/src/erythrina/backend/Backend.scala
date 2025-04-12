@@ -11,6 +11,7 @@ import erythrina.backend.rename.{RAT, FreeList}
 import erythrina.backend.regfile.{RegFile, BusyTable}
 import erythrina.backend.fu.EXUInfo
 import erythrina.backend.rob.ROBPtr
+import difftest.DifftestInfos
 
 class BackEnd extends ErythModule {
     val io = IO(new Bundle {
@@ -43,6 +44,8 @@ class BackEnd extends ErythModule {
 
             val lq_exc_infos = Vec(LoadQueSize, Flipped(ValidIO(new ROBPtr)))
         }
+
+        val difftest = Vec(CommitWidth, ValidIO(new DifftestInfos))
     })
 
     val intISQ = Module(new IssueQueue(2, "IntIssueQueue", 8))
@@ -119,4 +122,5 @@ class BackEnd extends ErythModule {
     rob.io.rob_commit <> io.to_memblock.rob_commits
     rob.io.bt_free_req <> busyTable.io.free
     rob.io.fl_free_req <> freelist.io.free_req
+    rob.io.difftest <> io.difftest
 }

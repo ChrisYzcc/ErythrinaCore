@@ -4,13 +4,13 @@ import top.Config
 import chisel3.util._
 
 trait HasErythCoreParams {
-    val XLEN = Config.getInt("XLEN")
+    val XLEN = Config.XLEN
     val MASKLEN = XLEN / 8
 
-    val RESETVEC = Config.getLong("RESETVEC")
+    val RESETVEC = Config.RESETVEC
 
-    val FetchWidth = Config.getInt("FetchWidth")
-    val FTQSize = Config.getInt("FTQSize")
+    val FetchWidth = 2
+    val FTQSize = 16
     val DecodeWidth = FetchWidth
     val RenameWidth = DecodeWidth
     val DispatchWidth = RenameWidth

@@ -4,6 +4,8 @@ import chisel3._
 import chisel3.util._
 import erythrina.ErythModule
 import erythrina.backend.InstExInfo
+import difftest.DifftestInfos
+import erythrina.frontend.FuType
 
 class ROB extends ErythModule {
     val io = IO(new Bundle {
@@ -36,6 +38,9 @@ class ROB extends ErythModule {
             val a_reg = UInt(ArchRegAddrBits.W)
             val p_reg = UInt(PhyRegAddrBits.W)
         }))
+
+        // difftest
+        val difftest = Vec(CommitWidth, ValidIO(new DifftestInfos))
 
         // redirect
     })
@@ -136,5 +141,19 @@ class ROB extends ErythModule {
     for (i <- 0 until CommitWidth) {
         io.rob_commit(i).valid := commit_canDeq(i)
         io.rob_commit(i).bits := entries(commitPtrExt(i).value)
+    }
+
+    // difftest
+    for (i <- 0 until CommitWidth) {
+        io.difftest(i).valid := commit_canDeq(i)
+        io.difftest(i).bits.pc := entries(commitPtrExt(i).value).pc
+        io.difftest(i).bits.inst := entries(commitPtrExt(i).value).instr
+        io.difftest(i).bits.rf_wen := entries(commitPtrExt(i).value).rf_wen
+        io.difftest(i).bits.rf_waddr := entries(commitPtrExt(i).value).a_rd
+        io.difftest(i).bits.rf_wdata := entries(commitPtrExt(i).value).res
+        io.difftest(i).bits.mem_wen := entries(commitPtrExt(i).value).fuType === FuType.stu
+        io.difftest(i).bits.mem_addr := entries(commitPtrExt(i).value).addr
+        io.difftest(i).bits.mem_data := entries(commitPtrExt(i).value).res
+        io.difftest(i).bits.mem_mask := entries(commitPtrExt(i).value).mask
     }
 }
