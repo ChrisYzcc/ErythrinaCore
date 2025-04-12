@@ -14,6 +14,13 @@ class InstrState extends Bundle {
     val finished = Bool()
 }
 
+class RobException extends ErythBundle {
+    val store2load = Bool() // store-load exception
+    val bpu_mispredict = Bool() // branch mispredict
+
+    val nxt_pc = UInt(XLEN.W) // next pc
+}
+
 class InstExInfo extends ErythBundle {
     val instr   = UInt(XLEN.W)
     val pc      = UInt(XLEN.W)
@@ -53,8 +60,8 @@ class InstExInfo extends ErythBundle {
 
     // result
     val res = UInt(XLEN.W)
-    val st_addr = UInt(XLEN.W)
-    val st_mask = UInt(MASKLEN.W)
+    val addr = UInt(XLEN.W)
+    val mask = UInt(MASKLEN.W)
 
     // idx
     val robPtr = new ROBPtr
@@ -67,6 +74,9 @@ class InstExInfo extends ErythBundle {
 
     val real_taken = Bool()     // real branch result
     val real_target = UInt(XLEN.W)
+
+    // exception
+    val exception = new RobException
 
     def fromInstInfo(inst_info: InstInfo) = {
         this := 0.U.asTypeOf(new InstExInfo)

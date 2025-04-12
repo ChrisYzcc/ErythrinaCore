@@ -11,3 +11,11 @@ object ROBParams extends HasErythCoreParams{
 class ROBPtr extends CircularQueuePtr[ROBPtr](ROBParams.ROBSize){
 
 }
+
+object ROBPtr{
+    def apply(): ROBPtr = {
+        val ptr = Wire(new ROBPtr)
+        ptr := 0.U.asTypeOf(ptr)
+        ptr
+    }
+}

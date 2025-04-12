@@ -31,4 +31,6 @@ trait HasErythCoreParams {
     val ArchRegAddrBits = log2Up(ArchRegNum)
 
     val ROBSize = 64
+    val LoadQueSize = 8
+    val StoreQueSize = 8
 }

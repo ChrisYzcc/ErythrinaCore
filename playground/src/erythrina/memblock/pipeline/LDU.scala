@@ -8,6 +8,8 @@ import bus.axi4._
 import utils.{MaskExpand, LookupTree, SignExt, ZeroExt}
 import erythrina.backend.fu.{LDUop, EXUInfo}
 import erythrina.frontend.FuType
+import erythrina.memblock.StoreFwdBundle
+import erythrina.backend.rob.ROBPtr
 
 class LDU extends ErythModule {
     val io = IO(new Bundle {
@@ -16,16 +18,48 @@ class LDU extends ErythModule {
             val ar = DecoupledIO(new AXI4LiteBundleA)
             val r = Flipped(DecoupledIO(new AXI4LiteBundleR(dataBits = XLEN)))
         }
-        
-        val sq_fwd_req = ValidIO(UInt(XLEN.W))
-        val sq_fwd_rsp = Flipped(ValidIO(new Bundle {
-            val data = UInt(XLEN.W)
-            val mask = UInt(XLEN.W)
-        }))
+
+        val sq_fwd = Vec(StoreQueSize, Flipped(ValidIO(new StoreFwdBundle)))
+
+        val stu_fwd = Vec(2, Flipped(ValidIO(new StoreFwdBundle)))
         
         val exu_info = Output(new EXUInfo)      // to Backend
         val ldu_cmt = ValidIO(new InstExInfo)
     })
+
+    def getNewestFwd(fwd: Seq[ValidIO[StoreFwdBundle]], addr: UInt, ptr: ROBPtr): Valid[StoreFwdBundle] = {
+        val res = Valid(new StoreFwdBundle)
+        if (fwd.length == 0) {
+            res.valid := false.B
+            res.bits := 0.U.asTypeOf(new StoreFwdBundle)
+        }
+        if (fwd.length == 1) {
+            res.valid := fwd(0).valid && fwd(0).bits.addr === addr
+            res.bits := fwd(0).bits
+        }
+        if (fwd.length == 2) {
+            res.valid := fwd(0).valid && fwd(0).bits.addr === addr ||
+                         fwd(1).valid && fwd(1).bits.addr === addr
+            
+            val cmp = fwd(0).bits.robPtr > fwd(1).bits.robPtr   // 0 is newer
+            res.bits := Mux(cmp,
+                Mux(fwd(0).valid && fwd(0).bits.addr === addr, fwd(0).bits, fwd(1).bits),
+                Mux(fwd(1).valid && fwd(1).bits.addr === addr, fwd(1).bits, fwd(0).bits)
+            )
+        }
+        if (fwd.length > 2) {
+            val l_res = getNewestFwd(fwd.take(fwd.length / 2), addr, ptr)
+            val r_res = getNewestFwd(fwd.drop(fwd.length / 2), addr, ptr)
+            res.valid := l_res.valid || r_res.valid
+
+            val cmp = l_res.bits.robPtr > r_res.bits.robPtr   // left is newer
+            res.bits := Mux(cmp,
+                Mux(l_res.valid && l_res.bits.addr === addr, l_res.bits, r_res.bits),
+                Mux(r_res.valid && r_res.bits.addr === addr, r_res.bits, l_res.bits)
+            )
+        }
+        res
+    }
 
     val (req, axi) = (io.req, io.axi)
 
@@ -58,32 +92,33 @@ class LDU extends ErythModule {
 
     axi.r.ready := state === sRECV
 
-    // SQ fwd
-    val (sq_fwd_req, sq_fwd_rsp) = (io.sq_fwd_req, io.sq_fwd_rsp)
-    sq_fwd_req.valid := req.valid && state === sREQ
-    sq_fwd_req.bits := addr
-
-    val sq_fwd_valid = RegInit(false.B)
-    val sq_fwd_data = RegInit(0.U(XLEN.W))
-    val sq_fwd_mask = RegInit(0.U(XLEN.W))
-    
-    when (state === sREQ && axi.ar.fire) {
-        sq_fwd_valid := sq_fwd_rsp.valid
-        sq_fwd_data := sq_fwd_rsp.bits.data
-        sq_fwd_mask := sq_fwd_rsp.bits.mask
-    }
-
     // Generate Data
-    val axi_data = axi.r.bits.data
-    val axi_mask_exp = MaskExpand(~Mux(sq_fwd_valid, ~sq_fwd_mask, 0.U(MASKLEN.W)))
+    val req_inflight = RegEnable(req.bits, req.valid && state === sREQ)
+    val addr_inflight = RegEnable(addr, req.valid && state === sREQ)
 
-    val fwd_data = sq_fwd_data
-    val fwd_mask_exp = MaskExpand(Mux(sq_fwd_valid, sq_fwd_mask, 0.U(MASKLEN.W)))
+    val (sq_fwd, stu_fwd) = (io.sq_fwd, io.stu_fwd)
+    val sq_newest_fwd = getNewestFwd(sq_fwd, addr_inflight, req_inflight.robPtr)
+    val stu_newest_fwd = getNewestFwd(stu_fwd, addr_inflight, req_inflight.robPtr)
+
+    val final_fwd = Valid(new StoreFwdBundle)
+    final_fwd.valid := sq_newest_fwd.valid || stu_newest_fwd.valid
+    val cmp = sq_newest_fwd.bits.robPtr > stu_newest_fwd.bits.robPtr   // storequeue is newer
+    final_fwd.bits := Mux(cmp,
+        Mux(sq_newest_fwd.valid && sq_newest_fwd.bits.addr === addr_inflight, sq_newest_fwd.bits, stu_newest_fwd.bits),
+        Mux(stu_newest_fwd.valid && stu_newest_fwd.bits.addr === addr_inflight, stu_newest_fwd.bits, sq_newest_fwd.bits)
+    )
+
+    val fwd_valid = final_fwd.valid
+    val fwd_data = final_fwd.bits.data
+    val fwd_mask = final_fwd.bits.mask
+
+    val axi_data = axi.r.bits.data
+    val axi_mask_exp = MaskExpand(~Mux(fwd_valid, ~fwd_mask, 0.U(MASKLEN.W)))
+
+    val fwd_mask_exp = MaskExpand(Mux(fwd_valid, fwd_mask, 0.U(MASKLEN.W)))
 
     val data = axi_data & axi_mask_exp | fwd_data & fwd_mask_exp
 
-    val req_inflight = RegEnable(req.bits, req.valid && state === sREQ)
-    val addr_inflight = RegEnable(addr, req.valid && state === sREQ)
 
     val byte_res = LookupTree(addr_inflight(1, 0), List(
         "b00".U -> data(7, 0),
@@ -108,6 +143,7 @@ class LDU extends ErythModule {
     // Cmt
     val cmt_instBlk = WireInit(req_inflight)
     cmt_instBlk.res := res
+    cmt_instBlk.addr := addr_inflight
 
     io.ldu_cmt.valid := axi.r.fire && state === sRECV
     io.ldu_cmt.bits := cmt_instBlk

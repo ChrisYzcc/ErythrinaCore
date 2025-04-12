@@ -9,6 +9,8 @@ import erythrina.backend.fu.{EXU0, EXU1}
 import erythrina.backend.rob.ROB
 import erythrina.backend.rename.{RAT, FreeList}
 import erythrina.backend.regfile.{RegFile, BusyTable}
+import erythrina.backend.fu.EXUInfo
+import erythrina.backend.rob.ROBPtr
 
 class BackEnd extends ErythModule {
     val io = IO(new Bundle {
@@ -34,8 +36,12 @@ class BackEnd extends ErythModule {
         }
 
         val from_memblock = new Bundle {
+            val ldu_info = Input(new EXUInfo)
             val ldu_cmt = Flipped(ValidIO(new InstExInfo))
+            val stu_info = Input(new EXUInfo)
             val stu_cmt = Flipped(ValidIO(new InstExInfo))
+
+            val lq_exc_infos = Vec(LoadQueSize, Flipped(ValidIO(new ROBPtr)))
         }
     })
 
@@ -93,8 +99,10 @@ class BackEnd extends ErythModule {
 
     /* --------------- EXU -----------------*/
     exu0.io.req <> intISQ.io.deq(0)
+    exu0.io.exu_info <> intISQ.io.exu_info(0)
     exu0.io.cmt <> rob.io.fu_commit(0)
     exu1.io.req <> intISQ.io.deq(1)
+    exu1.io.exu_info <> intISQ.io.exu_info(1)
     exu1.io.cmt <> rob.io.fu_commit(1)
 
     io.to_memblock.ldu_req <> ldISQ.io.deq(0)
