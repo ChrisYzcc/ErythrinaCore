@@ -5,6 +5,7 @@ import chisel3.util._
 import erythrina._
 import bus.axi4._
 import device._
+import difftest.DifftestBox
 
 class SimTop extends Module {
     Config.RESETVEC = 0x80000000L
@@ -18,5 +19,6 @@ class SimTop extends Module {
     val axi_simpleRam = Module(new AX4ISimpleRam(new AXI4Lite))
     axi_simpleRam.io.axi <> axi_arbiter.io.out
     
-    dontTouch(core.io.difftest)
+    val difftest = Module(new DifftestBox)
+    difftest.io.diff_infos <> core.io.difftest
 }
