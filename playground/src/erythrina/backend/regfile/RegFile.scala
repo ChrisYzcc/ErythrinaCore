@@ -3,6 +3,30 @@ package erythrina.backend.regfile
 import chisel3._
 import chisel3.util._
 import erythrina.ErythModule
+import erythrina.HasErythCoreParams
+
+class RegFilePeeker extends BlackBox with HasBlackBoxInline with HasErythCoreParams {
+    val io = IO(new Bundle {
+        val idx = Output(UInt(PhyRegAddrBits.W))
+        val value = Input(UInt(XLEN.W))
+    })
+    setInline(s"RegFilePeeker.v",
+    s"""module RegFilePeeker(
+        |   output logic [${PhyRegAddrBits-1}:0] idx,
+        |   input wire [${XLEN-1}:0] value
+        |);
+        |   export "DPI-C" function peek_regfile;
+        |   
+        |   function void peek_regfile(
+        |       input logic [${PhyRegAddrBits-1}:0] reg_idx,
+        |       output logic [${XLEN-1}:0] reg_value
+        |   );
+        |       assign idx = reg_idx;
+        |       reg_value = value;
+        |   endfunction
+        |endmodule
+        """.stripMargin)
+}
 
 class RegFile(numReadPorts: Int, numWritePorts: Int) extends ErythModule {
     val io = IO(new Bundle {
@@ -40,4 +64,8 @@ class RegFile(numReadPorts: Int, numWritePorts: Int) extends ErythModule {
         }
         if (i != 0) assert(!same_addr.reduce(_ || _), s"Write port $i has same address as previous write ports")
     }
+
+    // For Difftest
+    val peeker = Module(new RegFilePeeker)
+    peeker.io.value := regFile(peeker.io.idx)
 }

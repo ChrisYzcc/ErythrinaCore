@@ -4,6 +4,30 @@ import chisel3._
 import chisel3.util._
 import erythrina.ErythModule
 import erythrina.backend.Redirect
+import erythrina.HasErythCoreParams
+
+class ArchRATPeeker extends BlackBox with HasBlackBoxInline with HasErythCoreParams {
+    val io = IO(new Bundle {
+        val arch_reg = Output(UInt(ArchRegAddrBits.W))
+        val phy_reg = Input(UInt(PhyRegAddrBits.W))
+    })
+    setInline(s"ArchRATPeeker.v",
+    s"""module ArchRATPeeker(
+        |   output logic [${ArchRegAddrBits-1}:0] arch_reg,
+        |   input wire [${PhyRegAddrBits-1}:0] phy_reg
+        |);
+        |   export "DPI-C" function peek_arch_rat;
+        |   
+        |   function void peek_arch_rat(
+        |       input logic [${ArchRegAddrBits-1}:0] a_reg,
+        |       output logic [${PhyRegAddrBits-1}:0] p_reg
+        |   );
+        |       assign arch_reg = a_reg;
+        |       p_reg = phy_reg;
+        |   endfunction
+        |endmodule
+        """.stripMargin)
+}
 
 class RAT extends ErythModule {
     val io = IO(new Bundle {
@@ -73,4 +97,8 @@ class RAT extends ErythModule {
             phy_rat(i) := arch_rat(i)
         }
     }
+
+    // Peeker for difftest
+    val peeker = Module(new ArchRATPeeker)
+    peeker.io.phy_reg := arch_rat(peeker.io.arch_reg)
 }
