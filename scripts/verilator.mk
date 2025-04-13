@@ -6,7 +6,12 @@ GTKWAVE = gtkwave
 TOP_NAME = SimTop
 OBJ_DIR = $(BUILD_DIR)/obj_dir/$(TOP_NAME)
 
-V_VFLG += -cc --trace-fst -O3 --build --savable
+# Emulator files
+EMU_DIR = ./emulator
+EMU_CSRC = $(shell find $(EMU_DIR) -name "*.c" -or -name "*.cpp")
+
+VFLG += --exe -cc --trace-fst -O3 --build -j 4 -CFLAGS "${CFLG}" --autoflush
+CFLG += -I$(EMU_DIR)/include
 
 ifeq ($(TOP_NAME), SimTop)
 VSRCS ?= $(shell find $(abspath $(RTL_SIM_DIR)) -name "*.v" -or -name "*.sv")
@@ -15,6 +20,5 @@ endif
 
 verilate:
 	mkdir -p $(OBJ_DIR)
-	$(VERILATOR) $(V_VFLG) --Mdir $(OBJ_DIR) --top-module $(TOP_NAME) $(VSRCS)
-
+	$(VERILATOR) $(VFLG) --Mdir $(OBJ_DIR) --top-module $(TOP_NAME) $(VSRCS) $(EMU_CSRC)
 .PHONY: verilate
