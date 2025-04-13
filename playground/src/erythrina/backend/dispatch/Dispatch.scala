@@ -8,6 +8,7 @@ import erythrina.backend.rob.ROBPtr
 import erythrina.memblock.lsq.{LQPtr, SQPtr}
 import erythrina.frontend.FuType
 import erythrina.backend.dispatch
+import erythrina.backend.Redirect
 
 class DispatchModule extends ErythModule {
     val io = IO(new Bundle {
@@ -55,9 +56,13 @@ class DispatchModule extends ErythModule {
 
         // to StIssueQueue
         val st_issue_req = Vec(DispatchWidth, DecoupledIO(new InstExInfo))
+
+        // redirect
+        val redirect = Flipped(ValidIO(new Redirect))
     })
 
     val dispatch_req = io.dispatch_req
+    val redirect = io.redirect
     val (rob_alloc_req, rob_alloc_rsp, rob_alloc_upt) = (io.rob_alloc_req, io.rob_alloc_rsp, io.rob_alloc_upt)
     val (lq_alloc_req, lq_alloc_rsp, lq_alloc_upt) = (io.lq_alloc_req, io.lq_alloc_rsp, io.lq_alloc_upt)
     val (sq_alloc_req, sq_alloc_rsp, sq_alloc_upt) = (io.sq_alloc_req, io.sq_alloc_rsp, io.sq_alloc_upt)
@@ -88,19 +93,37 @@ class DispatchModule extends ErythModule {
 
         val instExBlk = RegEnable(dispatch_req(i).bits, 0.U.asTypeOf(new InstExInfo), dispatch_req(i).fire)
 
+        when (dispatch_req(i).fire) {
+            robPtr_has_alloc := false.B
+            lqPtr_has_alloc := false.B
+            sqPtr_has_alloc := false.B
+        }
+
+        when (rob_alloc_req(i).fire) {
+            robPtr_has_alloc := true.B
+        }
+        when (lq_alloc_req(i).fire) {
+            lqPtr_has_alloc := true.B
+        }
+        when (sq_alloc_req(i).fire) {
+            sqPtr_has_alloc := true.B
+        }
+
         switch (states(i)) {
             is (sIDLE) {
-                when (dispatch_req(i).fire) {
+                when (dispatch_req(i).fire && !redirect.valid) {
                     states(i) := sAlloc
                 }
             }
             is (sAlloc) {
-                when (robPtr_ready && (!need_lqPtr || lqPtr_ready) && (!need_sqPtr || sqPtr_ready)) {
+                when (redirect.valid) {
+                    states(i) := sIDLE
+                }.elsewhen(robPtr_ready && (!need_lqPtr || lqPtr_ready) && (!need_sqPtr || sqPtr_ready)) {
                     states(i) := sDispatch
                 }
             }
             is (sDispatch) {
-                when (int_issue_req(i).fire || ld_issue_req(i).fire || st_issue_req(i).fire) {
+                when (int_issue_req(i).fire || ld_issue_req(i).fire || st_issue_req(i).fire || redirect.valid) {
                     states(i) := sIDLE
                 }
             }
@@ -113,13 +136,13 @@ class DispatchModule extends ErythModule {
         assert(PopCount(issues) <= 1.U, "Dispatch can only issue one instruction at a time")
 
         // Alloc
-        rob_alloc_req(i).valid := states(i) === sAlloc
+        rob_alloc_req(i).valid := states(i) === sAlloc && !robPtr_has_alloc && !redirect.valid
         rob_alloc_req(i).bits := instExBlk
 
-        lq_alloc_req(i).valid := states(i) === sAlloc && need_lqPtr
+        lq_alloc_req(i).valid := states(i) === sAlloc && need_lqPtr && !lqPtr_has_alloc && !redirect.valid
         lq_alloc_req(i).bits := instExBlk
 
-        sq_alloc_req(i).valid := states(i) === sAlloc && need_sqPtr
+        sq_alloc_req(i).valid := states(i) === sAlloc && need_sqPtr && !sqPtr_has_alloc && !redirect.valid
         sq_alloc_req(i).bits := instExBlk
 
         // Dispatch
@@ -141,19 +164,19 @@ class DispatchModule extends ErythModule {
         val is_ldu = instExBlk.fuType === FuType.ldu
         val is_stu = instExBlk.fuType === FuType.stu
         val is_int = !is_ldu && !is_stu
-        int_issue_req(i).valid := states(i) === sDispatch && is_int
+        int_issue_req(i).valid := states(i) === sDispatch && is_int && !redirect.valid
         int_issue_req(i).bits := issueBlk
-        ld_issue_req(i).valid := states(i) === sDispatch && is_ldu
+        ld_issue_req(i).valid := states(i) === sDispatch && is_ldu && !redirect.valid
         ld_issue_req(i).bits := issueBlk
-        st_issue_req(i).valid := states(i) === sDispatch && is_stu
+        st_issue_req(i).valid := states(i) === sDispatch && is_stu && !redirect.valid
         st_issue_req(i).bits := issueBlk
 
         // update
-        rob_alloc_upt(i).valid := states(i) === sDispatch
+        rob_alloc_upt(i).valid := states(i) === sDispatch && !redirect.valid
         rob_alloc_upt(i).bits := issueBlk
-        lq_alloc_upt(i).valid := states(i) === sDispatch && need_lqPtr
+        lq_alloc_upt(i).valid := states(i) === sDispatch && need_lqPtr && !redirect.valid
         lq_alloc_upt(i).bits := issueBlk
-        sq_alloc_upt(i).valid := states(i) === sDispatch && need_sqPtr
+        sq_alloc_upt(i).valid := states(i) === sDispatch && need_sqPtr && !redirect.valid
         sq_alloc_upt(i).bits := issueBlk
     }
     

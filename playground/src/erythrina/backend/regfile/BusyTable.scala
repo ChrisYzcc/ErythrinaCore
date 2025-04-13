@@ -3,6 +3,7 @@ package erythrina.backend.regfile
 import chisel3._
 import chisel3.util._
 import erythrina.ErythModule
+import erythrina.backend.Redirect
 
 class BusyTable extends ErythModule {
     val io = IO(new Bundle {
@@ -15,6 +16,8 @@ class BusyTable extends ErythModule {
 
         val alloc = Vec(DispatchWidth, Flipped(ValidIO(UInt(PhyRegAddrBits.W))))
         val free  = Vec(CommitWidth, Flipped(ValidIO(UInt(PhyRegAddrBits.W))))
+
+        val redirect = Flipped(ValidIO(new Redirect))
     })
 
     val busy_table = RegInit(VecInit(Seq.fill(PhyRegNum)(false.B)))
@@ -36,6 +39,13 @@ class BusyTable extends ErythModule {
     for (i <- 0 until CommitWidth) {
         when(io.free(i).valid) {
             busy_table(io.free(i).bits) := true.B
+        }
+    }
+
+    // redirect
+    when(io.redirect.valid) {
+        for (i <- 0 until PhyRegNum) {
+            busy_table(i) := false.B
         }
     }
     

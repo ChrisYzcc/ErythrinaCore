@@ -10,6 +10,7 @@ import erythrina.backend.fu.{LDUop, EXUInfo}
 import erythrina.frontend.FuType
 import erythrina.memblock.StoreFwdBundle
 import erythrina.backend.rob.ROBPtr
+import erythrina.backend.Redirect
 
 class LDU extends ErythModule {
     val io = IO(new Bundle {
@@ -25,6 +26,8 @@ class LDU extends ErythModule {
         
         val exu_info = Output(new EXUInfo)      // to Backend
         val ldu_cmt = ValidIO(new InstExInfo)
+
+        val redirect = Flipped(ValidIO(new Redirect))
     })
 
     def getNewestFwd(fwd: Seq[ValidIO[StoreFwdBundle]], addr: UInt, ptr: ROBPtr): Valid[StoreFwdBundle] = {
@@ -62,6 +65,15 @@ class LDU extends ErythModule {
     }
 
     val (req, axi) = (io.req, io.axi)
+    val redirect = io.redirect
+
+    val axi_req_inflight_cnt = RegInit(0.U(2.W))
+    when (axi.ar.fire) {
+        axi_req_inflight_cnt := axi_req_inflight_cnt + 1.U
+    }
+    when (axi.r.fire) {
+        axi_req_inflight_cnt := axi_req_inflight_cnt - 1.U
+    }
 
     // TODO: use pipeline
     val sIDLE :: sREQ :: sRECV :: Nil = Enum(3)
@@ -73,12 +85,12 @@ class LDU extends ErythModule {
             }
         }
         is (sREQ) {
-            when (axi.ar.fire) {
+            when (axi.ar.fire && !redirect.valid) {
                 state := sRECV
             }
         }
         is (sRECV) {
-            when (axi.r.fire) {
+            when ((axi.r.fire && axi_req_inflight_cnt === 1.U) || redirect.valid) {
                 state := sREQ
             }
         }
@@ -88,7 +100,7 @@ class LDU extends ErythModule {
 
     // AXI
     val addr = req.bits.src1 + req.bits.imm
-    axi.ar.valid        := req.valid && state === sREQ
+    axi.ar.valid        := req.valid && state === sREQ && !redirect.valid
     axi.ar.bits         := 0.U.asTypeOf(new AXI4LiteBundleA)
     axi.ar.bits.addr    := addr
 
@@ -121,7 +133,6 @@ class LDU extends ErythModule {
 
     val data = axi_data & axi_mask_exp | fwd_data & fwd_mask_exp
 
-
     val byte_res = LookupTree(addr_inflight(1, 0), List(
         "b00".U -> data(7, 0),
         "b01".U -> data(15, 8),
@@ -148,7 +159,7 @@ class LDU extends ErythModule {
     cmt_instBlk.addr := addr_inflight
     cmt_instBlk.state.finished := true.B
 
-    io.ldu_cmt.valid := axi.r.fire && state === sRECV
+    io.ldu_cmt.valid := (axi.r.fire && axi_req_inflight_cnt === 1.U) && state === sRECV && !redirect.valid
     io.ldu_cmt.bits := cmt_instBlk
 
     // EXU Info

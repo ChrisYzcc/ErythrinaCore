@@ -6,6 +6,7 @@ import erythrina.{ErythBundle, ErythModule}
 import erythrina.frontend.FuType
 import erythrina.backend.InstExInfo
 import utils.LookupTreeDefault
+import erythrina.backend.Redirect
 
 class EXUInfo extends ErythBundle {
     val busy = Bool()
@@ -17,6 +18,7 @@ class BaseEXU extends ErythModule {
         val req = Flipped(DecoupledIO(new InstExInfo))
         val cmt = ValidIO(new InstExInfo)
         val exu_info = Output(new EXUInfo)
+        val redirect = Flipped(ValidIO(new Redirect))
     })
 }
 
@@ -27,6 +29,7 @@ class EXU0 extends BaseEXU {
     val csr = Module(new CSR)
     
     val (req, cmt) = (io.req, io.cmt)
+    val redirect = io.redirect
 
     // EXU Info
     val handler_vec = WireInit(VecInit(Seq.fill(FuType.num)(false.B)))
@@ -75,7 +78,7 @@ class EXU0 extends BaseEXU {
     cmt_instBlk.exception.bpu_mispredict := bru_taken =/= req_instBlk.bpu_taken
     cmt_instBlk.exception.csr_ebreak := csr.io.ebreak
 
-    cmt.valid := req.valid
+    cmt.valid := req.valid && !redirect.valid
     cmt.bits := cmt_instBlk
 }
 
@@ -84,6 +87,7 @@ class EXU1 extends BaseEXU {
     val alu = Module(new ALU)
 
     val (req, cmt) = (io.req, io.cmt)
+    val redirect = io.redirect
 
     // EXU Info
     val handler_vec = WireInit(VecInit(Seq.fill(FuType.num)(false.B)))
@@ -108,6 +112,6 @@ class EXU1 extends BaseEXU {
     cmt_instBlk.res := alu_res
     cmt_instBlk.state.finished := true.B
     
-    cmt.valid := req.valid
+    cmt.valid := req.valid && !redirect.valid
     cmt.bits := cmt_instBlk
 }

@@ -7,6 +7,7 @@ import erythrina.backend.InstExInfo
 import erythrina.frontend.FuType
 import erythrina.backend.fu.EXUInfo
 import erythrina.backend.rob.ROBPtr
+import erythrina.backend.Redirect
 
 class IssueQueue(exu_num:Int, name:String, size:Int) extends ErythModule {
     val io = IO(new Bundle {
@@ -16,6 +17,8 @@ class IssueQueue(exu_num:Int, name:String, size:Int) extends ErythModule {
         val exu_info = Vec(exu_num, Input(new EXUInfo))
 
         val bypass = Vec(BypassWidth, Flipped(ValidIO(new BypassInfo)))
+
+        val redirect = Flipped(ValidIO(new Redirect))
 
         val last_robPtr = Flipped(ValidIO(new ROBPtr))  // for non-speculative
     })
@@ -136,6 +139,17 @@ class IssueQueue(exu_num:Int, name:String, size:Int) extends ErythModule {
                 entries(j).src2_ready := entries(j).src2_ready || entries(j).p_rs2 === bypass(i).bits.bypass_prd
                 entries(j).src2 := Mux(entries(j).src2_ready, entries(j).src2, bypass(i).bits.bypass_data)
             }   
+        }
+    }
+
+    // handle redirect
+    when (io.redirect.valid) {
+        for (i <- 0 until size) {
+            valids(i) := false.B
+            for (j <- 0 until size) {
+                age_matrix(i)(j) := false.B
+                age_matrix(j)(i) := false.B
+            }
         }
     }
 }

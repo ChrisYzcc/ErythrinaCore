@@ -6,6 +6,7 @@ import erythrina.ErythModule
 import erythrina.backend.InstExInfo
 import bus.axi4._
 import erythrina.memblock.StoreFwdBundle
+import erythrina.backend.Redirect
 
 class StoreQueue extends ErythModule {
     val io = IO(new Bundle {
@@ -30,7 +31,8 @@ class StoreQueue extends ErythModule {
             val b = Flipped(DecoupledIO(new AXI4LiteBundleB))
         }
 
-        // redirect?
+        // redirect
+        val redirect = Flipped(ValidIO(new Redirect))
     })
 
     val entries = RegInit(VecInit(Seq.fill(StoreQueSize)(0.U.asTypeOf(new InstExInfo))))
@@ -41,6 +43,7 @@ class StoreQueue extends ErythModule {
     // ptr
     val allocPtrExt = RegInit(VecInit((0 until DispatchWidth).map(_.U.asTypeOf(new SQPtr))))
     val deqPtrExt = RegInit(0.U.asTypeOf(new SQPtr))
+    val uncommitedPtrExt = RegInit(VecInit((0 until CommitWidth).map(_.U.asTypeOf(new SQPtr))))
 
     // alloc (enq)
     val (alloc_req, alloc_rsp) = (io.alloc_req, io.alloc_rsp)
@@ -91,6 +94,8 @@ class StoreQueue extends ErythModule {
             rob_commited(ptr.value) := true.B
         }
     }
+    val rob_commitNum = PopCount(rob_commit.map(_.valid))
+    uncommitedPtrExt.foreach{case x => when (rob_commitNum > 0.U) {x := x + rob_commitNum}}
 
     // StoreQueue Forward
     val sq_fwd = io.sq_fwd
@@ -158,5 +163,20 @@ class StoreQueue extends ErythModule {
 
     when (deqPtrExt < allocPtrExt(0) && !valids(deqPtrExt.value)) {
         deqPtrExt := deqPtrExt + 1.U
+    }
+
+    // redirect
+    when (io.redirect.valid) {
+        for (i <- 0 until StoreQueSize) {
+            when (!rob_commited(i)) {
+                entries(i) := 0.U.asTypeOf(new InstExInfo)
+                valids(i) := false.B
+                stu_finished(i) := false.B
+                rob_commited(i) := false.B
+            }
+        }
+        for (i <- 0 until DispatchWidth) {
+            allocPtrExt(i) := uncommitedPtrExt(i)
+        }
     }
 }

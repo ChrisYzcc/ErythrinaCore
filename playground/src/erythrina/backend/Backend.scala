@@ -39,7 +39,7 @@ class Backend extends ErythModule {
 
             val rob_commits = Vec(CommitWidth, ValidIO(new InstExInfo))
 
-            // TODO: redirect
+            val redirect = ValidIO(new Redirect)
         }
 
         val from_memblock = new Bundle {
@@ -127,6 +127,7 @@ class Backend extends ErythModule {
     rdu.io.int_issue_req <> intISQ.io.enq
     rdu.io.ld_issue_req <> ldISQ.io.enq
     rdu.io.st_issue_req <> stISQ.io.enq
+    
 
     /* --------------- EXU -----------------*/
     exu0.io.req <> intISQ.io.deq(0)
@@ -160,7 +161,19 @@ class Backend extends ErythModule {
     ldISQ.io.last_robPtr <> DontCare
     stISQ.io.last_robPtr <> DontCare
 
+    val backend_redirect = rob.io.redirect
     /* --------------- Flush & Redirect -------------- */
     io.to_frontend.flush := rob.io.flush
-    io.to_frontend.redirect <> rob.io.redirect
+    io.to_frontend.redirect <> backend_redirect
+    io.to_memblock.redirect <> backend_redirect
+
+    rdu.io.redirect <> backend_redirect
+    intISQ.io.redirect <> backend_redirect
+    ldISQ.io.redirect <> backend_redirect
+    stISQ.io.redirect <> backend_redirect
+    exu0.io.redirect <> backend_redirect
+    exu1.io.redirect <> backend_redirect
+    rat.io.redirect <> backend_redirect
+    busyTable.io.redirect <> backend_redirect
+    freelist.io.redirect <> backend_redirect
 }

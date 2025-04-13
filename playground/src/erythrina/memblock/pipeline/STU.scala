@@ -8,6 +8,7 @@ import erythrina.backend.fu.{EXUInfo, STUop}
 import erythrina.frontend.FuType
 import utils.LookupTree
 import erythrina.memblock.StoreFwdBundle
+import erythrina.backend.Redirect
 
 class STU extends ErythModule {
     val io = IO(new Bundle {
@@ -16,10 +17,13 @@ class STU extends ErythModule {
         val exu_info = Output(new EXUInfo)
 
         val stu_fwd = Vec(2, ValidIO(new StoreFwdBundle))
+
+        val redirect = Flipped(ValidIO(new Redirect))
     })
 
     val (req, cmt) = (io.req, io.cmt)
     val st_fwd = io.stu_fwd
+    val redirect = io.redirect
 
     // EXU Info
     val handler_vec = WireInit(VecInit(Seq.fill(FuType.num)(false.B)))
@@ -30,7 +34,7 @@ class STU extends ErythModule {
     exu_info.fu_type_vec := handler_vec.asUInt
 
     /* ----------------------- s0 -------------------------- */
-    val s0_valid = req.valid
+    val s0_valid = req.valid && !redirect.valid
     req.ready := true.B
 
     // Calculate
@@ -54,7 +58,7 @@ class STU extends ErythModule {
     st_fwd(0).bits.robPtr := req.bits.robPtr
 
     /* ----------------------- s1 -------------------------- */
-    val s1_valid = RegNext(s0_valid)
+    val s1_valid = RegNext(s0_valid) && !redirect.valid
     val s1_st_addr = RegNext(st_addr)
     val s1_st_data = RegNext(st_data)
     val s1_st_mask = RegNext(st_mask)

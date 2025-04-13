@@ -22,6 +22,15 @@ class IFU extends ErythModule {
     val (fetch_req, fetch_rsp) = (io.fetch_req, io.fetch_rsp)
     val axi = io.axi
 
+    val axi_req_inflight_cnt = RegInit(0.U(2.W))
+
+    when (axi.ar.fire) {
+        axi_req_inflight_cnt := axi_req_inflight_cnt + 1.U
+    }
+    when (axi.r.fire) {
+        axi_req_inflight_cnt := axi_req_inflight_cnt - 1.U
+    }
+
     // TODO: use pipeline
     val sIDLE :: sREQ :: sRECV :: Nil = Enum(3)
     val state = RegInit(sIDLE)
@@ -32,12 +41,12 @@ class IFU extends ErythModule {
             }
         }
         is (sREQ) {
-            when (axi.ar.fire) {
+            when ((axi.ar.fire && axi_req_inflight_cnt === 1.U) && !io.flush) {
                 state := sRECV
             }
         }
         is (sRECV) {
-            when (axi.r.fire) {
+            when (axi.r.fire || io.flush) {
                 state := sREQ
             }
         }
@@ -60,6 +69,6 @@ class IFU extends ErythModule {
     rsp_block.instVec(0).instr  := axi.r.bits.data(XLEN - 1, 0)
     rsp_block.instVec(1).instr  := axi.r.bits.data(2 * XLEN - 1, XLEN)
 
-    fetch_rsp.valid := axi.r.fire && state === sRECV
+    fetch_rsp.valid := (axi.ar.fire && axi_req_inflight_cnt === 1.U) && state === sRECV
     fetch_rsp.bits  := rsp_block
 }

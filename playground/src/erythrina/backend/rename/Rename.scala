@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 import erythrina.ErythModule
 import erythrina.backend.InstExInfo
+import erythrina.backend.Redirect
 
 class RenameModule extends ErythModule {
     val io = IO(new Bundle {
@@ -26,10 +27,13 @@ class RenameModule extends ErythModule {
 
         // To FreeList
         val fl_req = Vec(RenameWidth, DecoupledIO())
-        val fl_rsp = Vec(RenameWidth, Flipped(UInt(PhyRegAddrBits.W)))
+        val fl_rsp = Vec(RenameWidth, Input(UInt(PhyRegAddrBits.W)))
 
         // To BusyTable
         val bt_alloc = Vec(RenameWidth, ValidIO(UInt(PhyRegAddrBits.W)))
+
+        // Redirect
+        val redirect = Flipped(ValidIO(new Redirect))
     })
 
     val (rs1, rs2, rd) = (io.rs1, io.rs2, io.rd)
@@ -38,6 +42,7 @@ class RenameModule extends ErythModule {
     val (rename_req, rename_rsp) = (io.rename_req, io.rename_rsp)
     val (fl_req, fl_rsp) = (io.fl_req, io.fl_rsp)
     val bt_alloc = io.bt_alloc
+    val redirect = io.redirect
 
     // Req to RAT
     for (i <- 0 until RenameWidth) {
@@ -49,7 +54,7 @@ class RenameModule extends ErythModule {
     // Req to FreeList
     val new_dst = Wire(Vec(RenameWidth, UInt(PhyRegAddrBits.W)))
     for (i <- 0 until RenameWidth) {
-        fl_req(i).valid := rename_req(i).valid && rename_req(i).bits.rd_need_rename
+        fl_req(i).valid := rename_req(i).valid && rename_req(i).bits.rd_need_rename && !redirect.valid
         new_dst(i) := fl_rsp(i)
     }
 
@@ -69,7 +74,7 @@ class RenameModule extends ErythModule {
             }.reduce(_ || _)
         }
 
-        wr_phy(i).valid := fl_req(i).fire && !hasWAW(i)
+        wr_phy(i).valid := fl_req(i).fire && !hasWAW(i) && !redirect.valid
         wr_phy(i).bits.a_reg := rd(i)
         wr_phy(i).bits.p_reg := new_dst(i)
     }
@@ -114,10 +119,10 @@ class RenameModule extends ErythModule {
         rsp_instExInfo.p_rs2 := final_rs2(i)
         rsp_instExInfo.p_rd  := new_dst(i)
 
-        rename_rsp(i).valid := !fl_req(i).valid || fl_req(i).ready
+        rename_rsp(i).valid := (!fl_req(i).valid || fl_req(i).ready) && !redirect.valid
         rename_rsp(i).bits := rsp_instExInfo
 
-        bt_alloc(i).valid := rename_req(i).valid && rename_req(i).bits.rf_wen
+        bt_alloc(i).valid := rename_req(i).valid && rename_req(i).bits.rf_wen && !redirect.valid
         bt_alloc(i).bits := new_dst(i)
     }
 }

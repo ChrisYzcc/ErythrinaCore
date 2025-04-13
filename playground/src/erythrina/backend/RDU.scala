@@ -18,7 +18,8 @@ class RDU extends ErythModule {
         // from FrontEnd
         val req = Vec(RenameWidth, Flipped(DecoupledIO(new InstExInfo)))
 
-        // redirect?
+        // redirect
+        val redirect = Flipped(ValidIO(new Redirect))
 
         /* --------------- Rename Module ---------------- */
         // to RAT
@@ -87,6 +88,8 @@ class RDU extends ErythModule {
         val st_issue_req = Vec(DispatchWidth, DecoupledIO(new InstExInfo))
     })
 
+    val redirect = io.redirect
+
     val renameModule = Module(new RenameModule)
     val dispatchModule = Module(new DispatchModule)
 
@@ -99,19 +102,19 @@ class RDU extends ErythModule {
     val s1_state = RegInit(s1IDLE)
     switch (s1_state) {
         is (s1IDLE) {
-            when (req.map(_.fire).reduce(_||_)) {
+            when (req.map(_.fire).reduce(_||_) && !redirect.valid) {
                 s1_state := s1RENAME
             }
         }
         is (s1RENAME) {
-            when (s1_ready && s2_ready) {
+            when (s1_ready && s2_ready || redirect.valid) {
                 s1_state := s1IDLE
             }.elsewhen(s1_ready && !s2_ready) {
                 s1_state := s1WAIT
             }
         }
         is (s1WAIT) {
-            when (s2_ready) {
+            when (s2_ready || redirect.valid) {
                 s1_state := s1IDLE
             }
         }
@@ -138,10 +141,10 @@ class RDU extends ErythModule {
     }
 
     for (i <- 0 until RenameWidth) {
-        renameModule.io.rename_req(i).valid := s1_state === s1RENAME && s1_valid_vec(i)
+        renameModule.io.rename_req(i).valid := s1_state === s1RENAME && s1_valid_vec(i) && !redirect.valid
         renameModule.io.rename_req(i).bits := s1_req_vec(i)
 
-        req(i).ready := s1_state === s1IDLE
+        req(i).ready := s1_state === s1IDLE && !redirect.valid
     }
 
     val rename_rsp = renameModule.io.rename_rsp
@@ -153,7 +156,7 @@ class RDU extends ErythModule {
         renamed_blk_vec(i) := rename_rsp(i).bits
     }
 
-    s1_ready := s1_state === s1WAIT || rename_all_ready
+    s1_ready := s1_state === s1WAIT || rename_all_ready || redirect.valid
     when (s1_state === s1RENAME && rename_all_ready) {
         for (i <- 0 until RenameWidth) {
             renamed_blk_vec_reg(i) := renamed_blk_vec(i)
@@ -181,10 +184,14 @@ class RDU extends ErythModule {
     dispatchModule.io.ld_issue_req <> io.ld_issue_req
     dispatchModule.io.st_issue_req <> io.st_issue_req
 
-    s2_ready := dispatch_req.map(_.ready).reduce(_ && _)
+    s2_ready := dispatch_req.map(_.ready).reduce(_ && _) || redirect.valid
     for (i <- 0 until DispatchWidth) {
-        dispatch_req(i).valid := s1_valid_vec(i)
+        dispatch_req(i).valid := s1_valid_vec(i) && !redirect.valid
         dispatch_req(i).bits := s1_to_s2_req(i)
     }
+
+    /* ---------------- Redirect ---------------- */
+    renameModule.io.redirect <> redirect
+    dispatchModule.io.redirect <> redirect
     
 }

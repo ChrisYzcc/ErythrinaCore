@@ -5,6 +5,7 @@ import chisel3.util._
 import erythrina.ErythModule
 import erythrina.backend.InstExInfo
 import erythrina.backend.rob.ROBPtr
+import erythrina.backend.Redirect
 
 class LoadQueue extends ErythModule {
     val io = IO(new Bundle {
@@ -25,7 +26,8 @@ class LoadQueue extends ErythModule {
         // from LDU res
         val ldu_cmt = Flipped(ValidIO(new InstExInfo))
 
-        // redirect?
+        // redirect
+        val redirect = Flipped(ValidIO(new Redirect))
     })
 
     val entries = RegInit(VecInit(Seq.fill(LoadQueSize)(0.U.asTypeOf(new InstExInfo))))
@@ -112,5 +114,20 @@ class LoadQueue extends ErythModule {
     // deq (free)
     when (deqPtrExt < allocPtrExt(0) && !valids(deqPtrExt.value)) {
         deqPtrExt := deqPtrExt + 1.U
+    }
+
+    // redirect
+    val redirect = io.redirect
+    when (redirect.valid) {
+        for (i <- 0 until LoadQueSize) {
+            entries(i) := 0.U.asTypeOf(new InstExInfo)
+            valids(i) := false.B
+            ldu_finished(i) := false.B
+            has_st2ld(i) := false.B
+        }
+        deqPtrExt := 0.U.asTypeOf(new LQPtr)
+        for (i <- 0 until DispatchWidth) {
+            allocPtrExt(i) := i.U.asTypeOf(new LQPtr)
+        }
     }
 }

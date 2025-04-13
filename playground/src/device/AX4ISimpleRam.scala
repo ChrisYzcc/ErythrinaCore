@@ -44,6 +44,7 @@ class MemReadHelpler extends BlackBox with HasBlackBoxInline {
         |           RESP: begin
         |               nxt_state = REQ;
         |           end
+        |           default: nxt_state = REQ;
         |       endcase
         |   end
         |

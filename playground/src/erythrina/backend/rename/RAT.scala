@@ -3,6 +3,7 @@ package erythrina.backend.rename
 import chisel3._
 import chisel3.util._
 import erythrina.ErythModule
+import erythrina.backend.Redirect
 
 class RAT extends ErythModule {
     val io = IO(new Bundle {
@@ -27,7 +28,8 @@ class RAT extends ErythModule {
             val p_reg = UInt(PhyRegAddrBits.W)
         })))
 
-        // redirect?
+        // redirect
+        val redirect = Flipped(ValidIO(new Redirect))
     })
 
     val arch_rat = Reg(Vec(ArchRegNum, UInt(PhyRegAddrBits.W)))
@@ -64,5 +66,11 @@ class RAT extends ErythModule {
         }
     }
 
-    // TODO: Redirect
+    // Redirect
+    val redirect = io.redirect
+    when(redirect.valid) {
+        for (i <- 0 until ArchRegNum) {
+            phy_rat(i) := arch_rat(i)
+        }
+    }
 }

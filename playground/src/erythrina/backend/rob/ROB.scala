@@ -8,6 +8,7 @@ import difftest.DifftestInfos
 import erythrina.frontend.FuType
 import erythrina.backend.Redirect
 import utils.LookupTree
+import utils.{Halter, HaltOp}
 
 class ROB extends ErythModule {
     val io = IO(new Bundle {
@@ -145,7 +146,7 @@ class ROB extends ErythModule {
 
         // FreeList
         fl_free_req(i).valid := commit_canDeq(i) && entries(ptr.value).rd_need_rename
-        fl_free_req(i).bits := entries(ptr.value).p_rd
+        fl_free_req(i).bits := entries(ptr.value).origin_preg
 
         // RAT
         rat_req(i).valid := commit_canDeq(i) && entries(ptr.value).rd_need_rename
@@ -211,7 +212,7 @@ class ROB extends ErythModule {
 
     // difftest
     for (i <- 0 until CommitWidth) {
-        io.difftest(i).valid := commit_canDeq(i)
+        io.difftest(i).valid := (if (i == 0) redirect.valid || commit_canDeq(i) else commit_canDeq(i))
         io.difftest(i).bits.pc := entries(commitPtrExt(i).value).pc
         io.difftest(i).bits.inst := entries(commitPtrExt(i).value).instr
         io.difftest(i).bits.rf_wen := entries(commitPtrExt(i).value).rf_wen
@@ -222,4 +223,11 @@ class ROB extends ErythModule {
         io.difftest(i).bits.mem_data := entries(commitPtrExt(i).value).res
         io.difftest(i).bits.mem_mask := entries(commitPtrExt(i).value).mask
     }
+
+    // halter
+    val halter = Module(new Halter)
+    val halter_ebreak = entries(bottom_ptr.value).exception.csr_ebreak && entries(bottom_ptr.value).state.finished
+
+    halter.io.trigger := halter_ebreak
+    halter.io.reason := HaltOp.ebreak
 }

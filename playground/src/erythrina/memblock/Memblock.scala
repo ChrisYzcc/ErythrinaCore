@@ -9,6 +9,7 @@ import bus.axi4._
 import erythrina.memblock.pipeline._
 import erythrina.backend.fu.EXUInfo
 import erythrina.backend.rob.ROBPtr
+import erythrina.backend.Redirect
 
 class Memblock extends ErythModule {
     val io = IO(new Bundle {
@@ -25,6 +26,8 @@ class Memblock extends ErythModule {
             val stu_req = Flipped(DecoupledIO(new InstExInfo))
 
             val rob_commits = Vec(CommitWidth, Flipped(ValidIO(new InstExInfo)))
+
+            val redirect = Flipped(ValidIO(new Redirect))
         }
         
         val to_backend = new Bundle {
@@ -62,12 +65,14 @@ class Memblock extends ErythModule {
     ldu.io.ldu_cmt <> io.to_backend.ldu_cmt
     ldu.io.ldu_cmt <> loadQueue.io.ldu_cmt
     ldu.io.exu_info <> io.to_backend.ldu_info
+    ldu.io.redirect <> io.from_backend.redirect
 
     /* ---------------- STU ---------------- */
     stu.io.req <> io.from_backend.stu_req
     stu.io.cmt <> io.to_backend.stu_cmt
     stu.io.cmt <> storeQueue.io.stu_cmt
     stu.io.exu_info <> io.to_backend.stu_info
+    stu.io.redirect <> io.from_backend.redirect
 
     /* ---------------- Store Queue ---------------- */
     storeQueue.io.alloc_req <> io.from_backend.sq_alloc_req
@@ -80,6 +85,7 @@ class Memblock extends ErythModule {
     }
 
     storeQueue.io.axi <> io.axi.stu
+    storeQueue.io.redirect <> io.from_backend.redirect
 
     /* ---------------- Load Queue ---------------- */
     loadQueue.io.alloc_req <> io.from_backend.lq_alloc_req
@@ -94,4 +100,5 @@ class Memblock extends ErythModule {
     loadQueue.io.st_req.valid := io.from_backend.stu_req.valid
     loadQueue.io.st_req.bits := io.from_backend.stu_req.bits
     loadQueue.io.lq_except_infos <> io.to_backend.lq_except_infos
+    loadQueue.io.redirect <> io.from_backend.redirect
 }
