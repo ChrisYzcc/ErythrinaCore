@@ -126,7 +126,10 @@ inline void Emulator::reset_ncycles(size_t cycles) {
             tfp->dump(2 * i + 1);
         }
     }
+    dut_ptr->clock = 1;
+    dut_ptr->eval();
     dut_ptr->reset = 0;
+    dut_ptr->eval();
 }
 
 inline void Emulator::single_cycle() {

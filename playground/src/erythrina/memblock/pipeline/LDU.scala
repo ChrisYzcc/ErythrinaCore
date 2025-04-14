@@ -76,21 +76,16 @@ class LDU extends ErythModule {
     }
 
     // TODO: use pipeline
-    val sIDLE :: sREQ :: sRECV :: Nil = Enum(3)
-    val state = RegInit(sIDLE)
+    val sREQ :: sRECV :: Nil = Enum(2)
+    val state = RegInit(sREQ)
     switch (state) {
-        is (sIDLE) {
-            when (!reset.asBool) {
-                state := sREQ
-            }
-        }
         is (sREQ) {
             when (axi.ar.fire && !redirect.valid) {
                 state := sRECV
             }
         }
         is (sRECV) {
-            when ((axi.r.fire && axi_req_inflight_cnt === 1.U) || redirect.valid) {
+            when (axi.r.fire && axi_req_inflight_cnt === 1.U || redirect.valid) {
                 state := sREQ
             }
         }
