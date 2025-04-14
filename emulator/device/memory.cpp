@@ -11,7 +11,7 @@ uint8_t flash[FLASH_SIZE];
 long init_mem(char *img){
     if (img == nullptr) {
         printf("Use default image.\n");
-        memcpy(guest2host(emu->pc_rstvec), default_inst, sizeof(default_inst));
+        memcpy(guest2host(PC_RSTVEC), default_inst, sizeof(default_inst));
         return 8;
     }
 
@@ -25,7 +25,7 @@ long init_mem(char *img){
     assert(size < MEMSIZE);
 
     fseek(fp, 0, SEEK_SET);
-    int ret = fread(guest2host(emu->pc_rstvec), size, 1, fp);
+    int ret = fread(guest2host(PC_RSTVEC), size, 1, fp);
     assert(ret == 1);
 
     fclose(fp);

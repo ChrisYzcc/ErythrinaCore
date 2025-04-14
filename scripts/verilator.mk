@@ -21,4 +21,14 @@ endif
 verilate:
 	mkdir -p $(OBJ_DIR)
 	$(VERILATOR) $(VFLG) --Mdir $(OBJ_DIR) --top-module $(TOP_NAME) $(VSRCS) $(EMU_CSRC)
+
+SIM_TARGET = $(OBJ_DIR)/V$(TOP_NAME)
+
+sim:
+	$(call git_commit, "sim RTL") # DO NOT REMOVE THIS LINE!!!
+	$(SIM_TARGET) -d $(DIFF_SO) $(IMG) $(ARG)
+
+wave:
+	$(GTKWAVE) -r .gtkwaverc waveform
+
 .PHONY: verilate

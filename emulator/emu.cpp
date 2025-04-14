@@ -16,13 +16,13 @@ EmuArgs parse_args(int argc, const char *argv[]) {
         {"max-cycles", required_argument, NULL, 'c'},
         {"max-inst", required_argument, NULL, 'i'},
         {"dump-wave", no_argument, NULL, 'w'},
-        {"enable-diff", required_argument, NULL, 'd'},
+        {"difftest", required_argument, NULL, 'd'},
         {0, 0, NULL, 0}
     };
 
     int opt;
 
-    while ((opt = getopt_long(argc, (char *const *)argv, "-ch:i:w:d", table, NULL)) != -1) {
+    while ((opt = getopt_long(argc, (char *const *)argv, "-c:i:d:w", table, NULL)) != -1) {
         switch (opt) {
             case 'c':
                 args.max_cycles = strtoull(optarg, NULL, 0);
@@ -59,10 +59,7 @@ Emulator::Emulator(int argc, const char *argv[])
     
     args = parse_args(argc, argv);
 
-    pc_rstvec = 0x80000000;
-#ifdef __SOC__
-    pc_rstvec = 0x30000000;        
-#endif
+    pc_rstvec = PC_RSTVEC;
 
     // wave
     if (args.dump_wave) {

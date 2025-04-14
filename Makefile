@@ -5,13 +5,13 @@ PRJ = playground
 -include scripts/verilog.mk
 -include scripts/verilator.mk
 
+IMG ?= 
+ARG ?= -w
+DIFF_SO ?= $(NEMU_HOME)/build/riscv32-nemu-interpreter-so
+
 clean:
 	-rm -rf $(BUILD_DIR)
 
 .PHONY: test verilog help reformat checkformat clean
-
-sim:
-	$(call git_commit, "sim RTL") # DO NOT REMOVE THIS LINE!!!
-	@echo "Write this Makefile by yourself."
 
 -include ../Makefile

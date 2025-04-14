@@ -33,7 +33,7 @@ void init_difftest(long img_size, int port) {
     assert(ref_difftest_init);
 
     ref_difftest_init(port);
-    ref_difftest_memcpy(emu->pc_rstvec, guest2host(emu->pc_rstvec), img_size, DIFFTEST_TO_REF);
+    ref_difftest_memcpy(PC_RSTVEC, guest2host(PC_RSTVEC), img_size, DIFFTEST_TO_REF);
 }
 
 void diff_step() {

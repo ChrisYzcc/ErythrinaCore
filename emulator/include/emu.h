@@ -10,6 +10,12 @@
 
 #define TIMEOUT_CYCLES 1500
 
+#ifndef __SOC__
+    #define PC_RSTVEC 0x80000000
+#else
+    #define PC_RSTVEC 0x30000000
+#endif
+
 typedef enum{
     EMU_RUN,
     EMU_HIT_GOOD,
