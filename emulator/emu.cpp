@@ -90,16 +90,16 @@ Emulator::Emulator(int argc, const char *argv[])
 Emulator::~Emulator() {
     switch (state) {
         case EMU_HIT_GOOD:
-            printf("[SIM] Simulation Hit %sGood%s Trap", FontGreen, Restore);
+            printf("[SIM] Simulation Hit %sGood%s Trap\n", FontGreen, Restore);
             break;
         case EMU_HIT_BAD:
-            printf("[SIM] Simulation Hit %sBad%s Trap", FontRed, Restore);
+            printf("[SIM] Simulation Hit %sBad%s Trap\n", FontRed, Restore);
             break;
         case EMU_HIT_BREAK:
-            printf("[SIM] Simulation Hit %sBreak%s Trap", FontBlue, Restore);
+            printf("[SIM] Simulation Hit %sBreak%s Trap\n", FontBlue, Restore);
             break;
         default:
-            printf("[SIM] Simulation Hit %sUnknown%s Trap", FontRed, Restore);
+            printf("[SIM] Simulation Hit %sUnknown%s Trap\n", FontRed, Restore);
             break;
     }
 

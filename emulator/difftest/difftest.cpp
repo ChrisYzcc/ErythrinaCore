@@ -1,6 +1,7 @@
 #include "difftest.h"
 #include "VSimTop__Dpi.h"
 #include "emu.h"
+#include "svdpi.h"
 #include <cstddef>
 #include <cassert>
 #include <dlfcn.h>
@@ -45,6 +46,10 @@ int get_diff_infos(diff_infos *infos, int req_idx) {
     svLogic valid, rf_wen, mem_wen;
     svLogicVecVal pc, inst, rf_waddr, rf_wdata, mem_addr, mem_data, mem_mask, idx;
     idx.aval = req_idx;
+
+    svScope scope = svGetScopeFromName("TOP.SimTop.difftest.messager");
+    assert(scope);
+    svSetScope(scope);
 
     read_diff_info(
         &idx, &valid, &pc, &inst, &rf_wen, &rf_waddr, &rf_wdata,
