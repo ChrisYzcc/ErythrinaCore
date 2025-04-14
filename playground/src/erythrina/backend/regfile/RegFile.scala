@@ -17,12 +17,11 @@ class RegFilePeeker extends BlackBox with HasBlackBoxInline with HasErythCorePar
         |);
         |   export "DPI-C" function peek_regfile;
         |   
-        |   function void peek_regfile(
+        |   function int peek_regfile(
         |       input logic [${PhyRegAddrBits-1}:0] reg_idx,
-        |       output logic [${XLEN-1}:0] reg_value
         |   );
         |       assign idx = reg_idx;
-        |       reg_value = value;
+        |       return value;
         |   endfunction
         |endmodule
         """.stripMargin)

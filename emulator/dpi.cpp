@@ -1,22 +1,23 @@
 #include "VSimTop__Dpi.h"
 #include "dpi.h"
+#include "emu.h"
+#include <memory.h>
 
 // C Env
 extern "C" void halt(int reason) {
-
+    switch (reason) {
+        case HALT_EBREAK:
+            emu->trap(TRAP_HALT_EBREAK, 0);
+            break;
+        default:
+            emu->trap(TRAP_UNKNOWN, reason);
+    }
 }
 
 extern "C" int mem_read(int paddr) {
-    return 0;
+    return pmem_read(paddr & (~0x3u));
 }
 
 extern "C" void mem_write(int paddr, const svBitVecVal* mask, int data) {
-
+    pmem_write(paddr & (~0x3u), data, *mask);
 }
-
-// SV Env
-extern "C" void read_diff_info(const svLogicVecVal *idx, svLogic *valid, svLogicVecVal *pc, svLogicVecVal *inst, svLogic *rf_wen, svLogicVecVal *rf_waddr, svLogicVecVal *rf_wdata, svLogic *mem_wen, svLogicVecVal *mem_addr, svLogicVecVal *mem_data, svLogicVecVal *mem_mask);
-
-extern "C" void peek_arch_rat(const svLogicVecVal *a_reg, svLogicVecVal *p_reg);
-
-extern "C" void peek_regfile(const svLogicVecVal *reg_idx, svLogicVecVal *reg_value);

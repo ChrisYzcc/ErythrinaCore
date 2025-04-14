@@ -17,13 +17,15 @@ class ArchRATPeeker extends BlackBox with HasBlackBoxInline with HasErythCorePar
         |   input wire [${PhyRegAddrBits-1}:0] phy_reg
         |);
         |   export "DPI-C" function peek_arch_rat;
+        |   wire [${XLEN}-1:0] value;
+        |   assign value = {${XLEN-PhyRegAddrBits}'b0, phy_reg};
         |   
-        |   function void peek_arch_rat(
+        |   function int peek_arch_rat(
         |       input logic [${ArchRegAddrBits-1}:0] a_reg,
-        |       output logic [${PhyRegAddrBits-1}:0] p_reg
         |   );
+        |       
         |       assign arch_reg = a_reg;
-        |       p_reg = phy_reg;
+        |       return value;
         |   endfunction
         |endmodule
         """.stripMargin)
