@@ -60,7 +60,7 @@ class IFU extends ErythModule {
     when (fetch_req.fire) {
         inflight_block  := fetch_req.bits
     }
-    val rsp_block = inflight_block
+    val rsp_block = WireInit(inflight_block)
     rsp_block.instVec(0).instr  := axi.r.bits.data(XLEN - 1, 0)
     rsp_block.instVec(1).instr  := axi.r.bits.data(2 * XLEN - 1, XLEN)
 

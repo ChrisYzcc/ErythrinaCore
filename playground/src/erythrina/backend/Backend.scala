@@ -54,9 +54,9 @@ class Backend extends ErythModule {
         val difftest = Vec(CommitWidth, ValidIO(new DifftestInfos))
     })
 
-    val intISQ = Module(new IssueQueue(2, "IntIssueQueue", 8))
-    val ldISQ = Module(new IssueQueue(1, "LdIssueQueue", 8))
-    val stISQ = Module(new IssueQueue(1, "StIssueQueue", 8))
+    val isq_int = Module(new IssueQueue(2, "IntIssueQueue", 8))
+    val isq_ld = Module(new IssueQueue(1, "LdIssueQueue", 8))
+    val isq_st = Module(new IssueQueue(1, "StIssueQueue", 8))
 
     val exu0 = Module(new EXU0())
     val exu1 = Module(new EXU1())
@@ -85,9 +85,9 @@ class Backend extends ErythModule {
     bypass(3).valid := false.B      // STU don't write back
     bypass(3).bits := DontCare
 
-    intISQ.io.bypass <> bypass
-    ldISQ.io.bypass <> bypass
-    stISQ.io.bypass <> bypass
+    isq_int.io.bypass <> bypass
+    isq_ld.io.bypass <> bypass
+    isq_st.io.bypass <> bypass
 
 
     /* --------------- RDU -----------------*/
@@ -124,25 +124,25 @@ class Backend extends ErythModule {
     rdu.io.bt_res <> busyTable.io.readPorts
     rdu.io.bt_alloc <> busyTable.io.alloc
     // RDU <-> IssueQueue
-    rdu.io.int_issue_req <> intISQ.io.enq
-    rdu.io.ld_issue_req <> ldISQ.io.enq
-    rdu.io.st_issue_req <> stISQ.io.enq
+    rdu.io.int_issue_req <> isq_int.io.enq
+    rdu.io.ld_issue_req <> isq_ld.io.enq
+    rdu.io.st_issue_req <> isq_st.io.enq
     
 
     /* --------------- EXU -----------------*/
-    exu0.io.req <> intISQ.io.deq(0)
-    exu0.io.exu_info <> intISQ.io.exu_info(0)
+    exu0.io.req <> isq_int.io.deq(0)
+    exu0.io.exu_info <> isq_int.io.exu_info(0)
     exu0.io.cmt <> rob.io.fu_commit(0)
-    exu1.io.req <> intISQ.io.deq(1)
-    exu1.io.exu_info <> intISQ.io.exu_info(1)
+    exu1.io.req <> isq_int.io.deq(1)
+    exu1.io.exu_info <> isq_int.io.exu_info(1)
     exu1.io.cmt <> rob.io.fu_commit(1)
 
-    io.to_memblock.ldu_req <> ldISQ.io.deq(0)
+    io.to_memblock.ldu_req <> isq_ld.io.deq(0)
     io.from_memblock.ldu_cmt <> rob.io.fu_commit(2)
-    io.from_memblock.ldu_info <> ldISQ.io.exu_info(0)
-    io.to_memblock.stu_req <> stISQ.io.deq(0)
+    io.from_memblock.ldu_info <> isq_ld.io.exu_info(0)
+    io.to_memblock.stu_req <> isq_st.io.deq(0)
     io.from_memblock.stu_cmt <> rob.io.fu_commit(3)
-    io.from_memblock.stu_info <> stISQ.io.exu_info(0)
+    io.from_memblock.stu_info <> isq_st.io.exu_info(0)
 
     /* --------------- RAT -----------------*/
     rat.io.wr_cmt <> rob.io.upt_arch_rat
@@ -156,10 +156,10 @@ class Backend extends ErythModule {
     rob.io.lq_except_infos <> io.from_memblock.lq_except_infos
 
     // for Speculative
-    intISQ.io.last_robPtr.valid := true.B
-    intISQ.io.last_robPtr.bits := rob.io.last_robPtr
-    ldISQ.io.last_robPtr <> DontCare
-    stISQ.io.last_robPtr <> DontCare
+    isq_int.io.last_robPtr.valid := true.B
+    isq_int.io.last_robPtr.bits := rob.io.last_robPtr
+    isq_ld.io.last_robPtr <> DontCare
+    isq_st.io.last_robPtr <> DontCare
 
     val backend_redirect = rob.io.redirect
     /* --------------- Flush & Redirect -------------- */
@@ -168,9 +168,9 @@ class Backend extends ErythModule {
     io.to_memblock.redirect <> backend_redirect
 
     rdu.io.redirect <> backend_redirect
-    intISQ.io.redirect <> backend_redirect
-    ldISQ.io.redirect <> backend_redirect
-    stISQ.io.redirect <> backend_redirect
+    isq_int.io.redirect <> backend_redirect
+    isq_ld.io.redirect <> backend_redirect
+    isq_st.io.redirect <> backend_redirect
     exu0.io.redirect <> backend_redirect
     exu1.io.redirect <> backend_redirect
     rat.io.redirect <> backend_redirect

@@ -56,11 +56,8 @@ class FTQ extends ErythModule {
     
     // deq
     val decode_req = io.decode_req
-    for (i <- 0 until FTQSize) {
-        val entry = entries(i)
-        decode_req.valid := predicted(i) && fetched(i) && deqPtr === i.U && !io.flush
-        decode_req.bits := entry
-    }
+    decode_req.valid := predicted(deqPtrExt.value) && fetched(deqPtrExt.value) && !io.flush
+    decode_req.bits := entries(deqPtrExt.value)
     when (decode_req.fire) {
         deqPtrExt := deqPtrExt + 1.U
     }

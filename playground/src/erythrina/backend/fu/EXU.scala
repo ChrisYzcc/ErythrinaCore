@@ -75,11 +75,11 @@ class EXU0 extends BaseEXU {
     ))
 
     cmt_instBlk.state.finished := true.B
-    cmt_instBlk.exception.bpu_mispredict := bru_taken =/= req_instBlk.bpu_taken
-    cmt_instBlk.exception.csr_ebreak := csr.io.ebreak
+    cmt_instBlk.exception.bpu_mispredict := bru_taken =/= req_instBlk.bpu_taken && req_instBlk.fuType === FuType.bru
+    cmt_instBlk.exception.csr_ebreak := csr.io.ebreak && req_instBlk.fuType === FuType.csr
 
-    cmt.valid := req.valid && !redirect.valid
-    cmt.bits := cmt_instBlk
+    cmt.valid := RegNext(req.valid) && !redirect.valid
+    cmt.bits := RegNext(cmt_instBlk)
 }
 
 // exu1: alu
@@ -112,6 +112,6 @@ class EXU1 extends BaseEXU {
     cmt_instBlk.res := alu_res
     cmt_instBlk.state.finished := true.B
     
-    cmt.valid := req.valid && !redirect.valid
-    cmt.bits := cmt_instBlk
+    cmt.valid := RegNext(req.valid) && !redirect.valid
+    cmt.bits := RegNext(cmt_instBlk)
 }

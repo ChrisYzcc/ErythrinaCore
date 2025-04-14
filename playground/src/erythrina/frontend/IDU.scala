@@ -21,7 +21,10 @@ class IDU extends ErythModule {
         val decoder = decoder_seq(i)
         val decode_res = decode_res_vec(i)
 
-        decoder.io.in := decode_req.bits.instVec(i)
+        val decoder_in = WireInit(decode_req.bits.instVec(i))
+        decoder_in.valid := decode_req.bits.instVec(i).valid && !io.flush && io.decode_req.valid
+
+        decoder.io.in := decoder_in
 
         decode_res.valid := decoder.io.out.valid && !io.flush
         decode_res.bits := decoder.io.out.bits

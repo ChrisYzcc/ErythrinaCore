@@ -3,8 +3,10 @@
 #include "common.h"
 #include "difftest.h"
 #include "isa.h"
+#include "svdpi.h"
 #include "verilated.h"
 #include "verilated_fst_c.h"
+#include <cassert>
 #include <getopt.h>
 #include <cstddef>
 #include <memory.h>
@@ -192,12 +194,19 @@ void Emulator::trap(TrapCode trap_code, uint32_t trap_info) {
 }
 
 void Emulator::get_npc_regfiles() {
+    svScope scope = svGetScopeFromName("TOP.SimTop.core.backend.rat.peeker");
+    assert(scope);
+    svSetScope(scope);
+
     // Get RAT from NPC
     uint32_t rat[ARCH_REG_NUM];
     for (int i = 0; i < ARCH_REG_NUM; i++) {
         rat[i] = peek_arch_rat((svLogicVecVal *)&i);
     }
 
+    scope = svGetScopeFromName("TOP.SimTop.core.backend.regfile.peeker");
+    assert(scope);
+    svSetScope(scope);
     // Get RF from NPC
     for (int i = 0; i < ARCH_REG_NUM; i++) {
         npc_arch_state.gpr[i] = peek_regfile((svLogicVecVal *)&rat[i]);

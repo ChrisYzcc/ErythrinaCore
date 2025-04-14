@@ -81,7 +81,8 @@ class IssueQueue(exu_num:Int, name:String, size:Int) extends ErythModule {
             val age_cnt = PopCount(age_vec.zip(ready_vec).map{
                 case (a, r) => a && r
             })
-            relations(j) := age_cnt === (tot_ready_cnt - i.U) && tot_ready_cnt > i.U
+            relations(j) := age_cnt === (tot_ready_cnt - i.U) && tot_ready_cnt > i.U && ready_vec(j)
+            dontTouch(age_cnt)
         }
 
         assert(PopCount(relations) <= 1.U)

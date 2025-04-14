@@ -14,10 +14,12 @@ extern "C" void halt(int reason) {
     }
 }
 
-extern "C" int mem_read(int paddr) {
-    return pmem_read(paddr & (~0x3u));
+extern "C" long long mem_read(int paddr) {
+    long long res = pmem_read(paddr & (~0x3u));
+    res |= ((long long)pmem_read(paddr + 4) << 32);
+    return res;
 }
 
-extern "C" void mem_write(int paddr, const svBitVecVal* mask, int data) {
+extern "C" void mem_write(int paddr, const svBitVecVal* mask, long long data) {
     pmem_write(paddr & (~0x3u), data, *mask);
 }
