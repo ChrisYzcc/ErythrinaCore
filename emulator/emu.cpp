@@ -11,6 +11,13 @@
 #include <getopt.h>
 #include <cstddef>
 #include <memory.h>
+#include <csignal>
+
+void handle_interrupt(int signum) {
+    if (signum == SIGINT) {
+        emu->trap(TRAP_SIG_INT, 0);
+    }
+}
 
 EmuArgs parse_args(int argc, const char *argv[]) {
     EmuArgs args;
@@ -64,6 +71,7 @@ EmuArgs parse_args(int argc, const char *argv[]) {
 
 Emulator::Emulator(int argc, const char *argv[])
     : dut_ptr(new DUT_TOP), cycles(0), state(EMU_RUN), inst_count(0), nocmt_cycles(0) {
+    signal(SIGINT, handle_interrupt);
     
     args = parse_args(argc, argv);
 
@@ -114,6 +122,9 @@ Emulator::~Emulator() {
             break;
         case EMU_HIT_BREAK:
             printf("Hit %sBreak%s Trap\n", FontBlue, Restore);
+            break;
+        case EMU_HIT_INTERRUPT:
+            printf("Hit %sInterrupt%s Trap\n", FontYellow, Restore);
             break;
         default:
             printf("Hit %sUnknown%s Trap\n", FontRed, Restore);
@@ -212,7 +223,27 @@ void Emulator::trap(TrapCode trap_code, uint32_t trap_info) {
         }
         case TRAP_DIFF_ERR: {
             printf("[Error] Difftest error.\n");
+            printf("RAT:\n");
+            for (int i = 0; i < ARCH_REG_NUM; i+=4) {
+                printf("%s -> %02d, %s -> %02d, %s -> %02d, %s -> %02d\n",
+                    get_regname(i), npc_uarch_state.rat[i],
+                    get_regname(i+1), npc_uarch_state.rat[i+1],
+                    get_regname(i+2), npc_uarch_state.rat[i+2],
+                    get_regname(i+3), npc_uarch_state.rat[i+3]
+                );
+            }
+            printf("RF:\n");
+            for (int i = 0; i < PHY_REG_NUM; i+=4) {
+                printf("[%02d] 0x%08x, [%02d] 0x%08x, [%02d]: 0x%08x, [%02d]: 0x%08x\n",
+                    i, npc_uarch_state.phy_reg[i], i+1, npc_uarch_state.phy_reg[i+1],
+                    i+2, npc_uarch_state.phy_reg[i+2], i+3, npc_uarch_state.phy_reg[i+3]);
+            }
             state = EMU_HIT_BAD;
+            break;
+        }
+        case TRAP_SIG_INT: {
+            printf("[Info] Terminated by interrupt.\n");
+            state = EMU_HIT_INTERRUPT;
             break;
         }
         default: {
@@ -229,23 +260,27 @@ void Emulator::get_npc_regfiles() {
     svSetScope(scope);
 
     // Get RAT from NPC
-    uint32_t rat[ARCH_REG_NUM];
     for (int i = 0; i < ARCH_REG_NUM; i++) {
         set_arch_reg((svLogicVecVal *)&i);
         svLogicVecVal rat_val;
         get_phy_reg((svLogicVecVal *)&rat_val);
-        rat[i] = (uint32_t)rat_val.aval;
+        npc_uarch_state.rat[i] = (uint32_t)rat_val.aval;
     }
 
     scope = svGetScopeFromName("TOP.SimTop.core.backend.regfile.peeker");
     assert(scope);
     svSetScope(scope);
     // Get RF from NPC
-    for (int i = 0; i < ARCH_REG_NUM; i++) {
+    for (int i = 0; i < PHY_REG_NUM; i++) {
         set_rf_idx((svLogicVecVal *)&i);
         svLogicVecVal rf_val;
         get_rf_value((svLogicVecVal *)&rf_val);
-        npc_arch_state.gpr[i] = (uint32_t)rf_val.aval;
+        npc_uarch_state.phy_reg[i] = (uint32_t)rf_val.aval;
+    }
+
+    // Generate NPC state
+    for (int i = 0; i < ARCH_REG_NUM; i++) {
+        npc_arch_state.gpr[i] = npc_uarch_state.phy_reg[npc_uarch_state.rat[i]];
     }
 }
 
@@ -270,6 +305,7 @@ int Emulator::step() {
     }
 
     if (args.enable_diff && cmt_cnt > 0) {
+        get_npc_regfiles();
         for (int i = 0; i < cmt_cnt; i++) {
             diff_step();
         }
@@ -306,6 +342,11 @@ void Emulator::diff_states(CPUState *ref) {
     if (npc_arch_state.pc != ref->pc) {
         printf("[Error] PC: NPC: 0x%08x, REF: 0x%08x\n", npc_arch_state.pc, ref->pc);
         has_err = 1;
+    }
+    else {
+        if (has_err) {
+            printf("[AT   ] PC: NPC: 0x%08x, REF: 0x%08x\n", npc_arch_state.pc, ref->pc);
+        }
     }
 
     if (has_err) {

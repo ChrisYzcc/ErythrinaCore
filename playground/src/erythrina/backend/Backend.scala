@@ -88,6 +88,7 @@ class Backend extends ErythModule {
     isq_int.io.bypass <> bypass
     isq_ld.io.bypass <> bypass
     isq_st.io.bypass <> bypass
+    rdu.io.bypass <> bypass
 
 
     /* --------------- RDU -----------------*/
@@ -173,7 +174,7 @@ class Backend extends ErythModule {
     isq_st.io.redirect <> backend_redirect
     exu0.io.redirect <> backend_redirect
     exu1.io.redirect <> backend_redirect
-    rat.io.redirect <> backend_redirect
-    busyTable.io.redirect <> backend_redirect
-    freelist.io.redirect <> backend_redirect
+    rat.io.redirect <> RegNext(backend_redirect)
+    busyTable.io.redirect <> RegNext(backend_redirect)
+    freelist.io.redirect <> RegNext(backend_redirect)
 }

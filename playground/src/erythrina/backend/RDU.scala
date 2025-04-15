@@ -12,6 +12,7 @@ import erythrina.backend.rob.ROBPtr
 import erythrina.memblock.lsq.{LQPtr, SQPtr}
 import erythrina.backend.rename.RenameModule
 import erythrina.backend.dispatch.DispatchModule
+import erythrina.backend.issue.BypassInfo
 
 class RDU extends ErythModule {
     val io = IO(new Bundle {
@@ -86,6 +87,9 @@ class RDU extends ErythModule {
 
         // to StIssueQueue
         val st_issue_req = Vec(DispatchWidth, DecoupledIO(new InstExInfo))
+
+        // bypass
+        val bypass = Vec(BypassWidth, Flipped(ValidIO(new BypassInfo)))
     })
 
     val redirect = io.redirect
@@ -133,7 +137,12 @@ class RDU extends ErythModule {
 
     val s1_req_vec = RegInit(VecInit(Seq.fill(RenameWidth)(0.U.asTypeOf(new InstExInfo))))
     val s1_valid_vec = RegInit(VecInit(Seq.fill(RenameWidth)(false.B)))
-    when (s1_state === s1IDLE && req.map(_.fire).reduce(_||_)) {
+    when (redirect.valid) {
+        for (i <- 0 until RenameWidth) {
+            s1_req_vec(i) := 0.U.asTypeOf(new InstExInfo)
+            s1_valid_vec(i) := false.B
+        }
+    }.elsewhen(s1_state === s1IDLE && req.map(_.fire).reduce(_||_)) {
         for (i <- 0 until RenameWidth) {
             s1_req_vec(i) := req(i).bits
             s1_valid_vec(i) := req(i).valid
@@ -183,6 +192,7 @@ class RDU extends ErythModule {
     dispatchModule.io.int_issue_req <> io.int_issue_req
     dispatchModule.io.ld_issue_req <> io.ld_issue_req
     dispatchModule.io.st_issue_req <> io.st_issue_req
+    dispatchModule.io.bypass <> io.bypass
 
     s2_ready := dispatch_req.map(_.ready).reduce(_ && _) || redirect.valid
     for (i <- 0 until DispatchWidth) {

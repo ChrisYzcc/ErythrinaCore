@@ -58,6 +58,8 @@ class ROB extends ErythModule {
         val redirect = ValidIO(new Redirect)
     })
 
+    val redirect = io.redirect
+
     // Need Flush
     val need_flush = RegInit(false.B)
 
@@ -136,20 +138,20 @@ class ROB extends ErythModule {
         commit_canDeq(i)  := commit_needDeq(i) && ptr < allocPtrExt(0) && !prev_has_unfinished
 
         // RegWrite
-        reg_write(i).valid := commit_canDeq(i) && entries(ptr.value).rf_wen
+        reg_write(i).valid := (if (i == 0) redirect.valid || commit_canDeq(i) else commit_canDeq(i)) && entries(ptr.value).rf_wen
         reg_write(i).bits.addr := entries(ptr.value).p_rd
         reg_write(i).bits.data := entries(ptr.value).res
 
         // BusyTable
-        bt_free_req(i).valid := commit_canDeq(i) && entries(ptr.value).rf_wen
+        bt_free_req(i).valid := (if (i == 0) redirect.valid || commit_canDeq(i) else commit_canDeq(i)) && entries(ptr.value).rf_wen
         bt_free_req(i).bits := entries(ptr.value).p_rd
 
         // FreeList
-        fl_free_req(i).valid := commit_canDeq(i) && entries(ptr.value).rd_need_rename
+        fl_free_req(i).valid := (if (i == 0) redirect.valid || commit_canDeq(i) else commit_canDeq(i)) && entries(ptr.value).rd_need_rename
         fl_free_req(i).bits := entries(ptr.value).origin_preg
 
         // RAT
-        rat_req(i).valid := commit_canDeq(i) && entries(ptr.value).rd_need_rename
+        rat_req(i).valid := (if (i == 0) redirect.valid || commit_canDeq(i) else commit_canDeq(i)) && entries(ptr.value).rd_need_rename
         rat_req(i).bits.a_reg := entries(ptr.value).a_rd
         rat_req(i).bits.p_reg := entries(ptr.value).p_rd
     }
@@ -157,13 +159,12 @@ class ROB extends ErythModule {
     commitPtrExt.foreach{case x => when (commit_canDeq.asUInt.orR) {x := x + cmtNum}}
 
     // handle exception and redirect
-    val redirect = io.redirect
     val bottom_ptr = commitPtrExt(0)
     
     redirect.valid := entries(bottom_ptr.value).state.finished && entries(bottom_ptr.value).exception.has_exception
     redirect.bits.pc := entries(bottom_ptr.value).pc
     redirect.bits.npc := Mux1H(Seq(
-        entries(bottom_ptr.value).exception.bpu_mispredict -> entries(bottom_ptr.value).bpu_target,
+        entries(bottom_ptr.value).exception.bpu_mispredict -> entries(bottom_ptr.value).real_target,
         entries(bottom_ptr.value).exception.csr_ebreak -> 0.U,
         entries(bottom_ptr.value).exception.store2load -> entries(bottom_ptr.value).pc
     ))

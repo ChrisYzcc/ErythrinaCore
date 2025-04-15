@@ -20,7 +20,8 @@ typedef enum{
     EMU_RUN,
     EMU_HIT_GOOD,
     EMU_HIT_BAD,
-    EMU_HIT_BREAK
+    EMU_HIT_BREAK,
+    EMU_HIT_INTERRUPT
 }EmuState;
 
 typedef enum{
@@ -30,6 +31,7 @@ typedef enum{
     TRAP_HALT_EBREAK,
     TRAP_HALT_HIT_INSTR_BOUND,
     TRAP_HALT_HIT_CYCLE_BOUND,
+    TRAP_SIG_INT,
     TRAP_UNKNOWN,
 }TrapCode;
 
@@ -45,6 +47,11 @@ struct EmuArgs {
     bool dump_trace = false;
 };
 
+struct MicroArchState {
+    uint32_t rat[ARCH_REG_NUM];
+    uint32_t phy_reg[PHY_REG_NUM];
+};
+
 class Emulator {
 private:
     DUT_TOP *dut_ptr;
@@ -57,6 +64,7 @@ private:
     uint64_t nocmt_cycles;
 
     CPUState npc_arch_state;
+    MicroArchState npc_uarch_state;
 
     inline void reset_ncycles(size_t cycles);
     inline void single_cycle();

@@ -31,14 +31,14 @@ class BusyTable extends ErythModule {
     // alloc (from rename)
     for (i <- 0 until RenameWidth) {
         when(io.alloc(i).valid) {
-            busy_table(io.alloc(i).bits) := false.B
+            busy_table(io.alloc(i).bits) := true.B
         }
     }
 
     // free (from rob)
     for (i <- 0 until CommitWidth) {
         when(io.free(i).valid) {
-            busy_table(io.free(i).bits) := true.B
+            busy_table(io.free(i).bits) := false.B
         }
     }
 

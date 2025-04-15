@@ -97,7 +97,7 @@ class IssueQueue(exu_num:Int, name:String, size:Int) extends ErythModule {
     }
     for (i <- 0 until exu_num) {    // for the oldest $exu_num instructions
         val entry = entries(deq_idx(i))
-        val valid = valids(deq_idx(i))
+        val valid = valids(deq_idx(i)) && deq_valid(i)
 
         val available_exu_list = 
             if (i == 0) {
@@ -112,10 +112,11 @@ class IssueQueue(exu_num:Int, name:String, size:Int) extends ErythModule {
                     }
                 }
             }
-
+        
         handle_exu_idx(i) := PriorityEncoder(available_exu_list)
         
         val canHandle = available_exu_list.reduce(_||_)
+        dontTouch(canHandle)
         
         deq(handle_exu_idx(i)).valid := valid && canHandle
         deq(handle_exu_idx(i)).bits := entry

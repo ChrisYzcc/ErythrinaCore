@@ -69,7 +69,7 @@ class EXU0 extends BaseEXU {
     val cmt_instBlk = WireInit(req_instBlk)
     cmt_instBlk.real_taken := bru_taken
     cmt_instBlk.real_target := bru_target
-    cmt_instBlk.res := LookupTreeDefault(req_instBlk.fuOpType, 0.U, List(
+    cmt_instBlk.res := LookupTreeDefault(req_instBlk.fuType, 0.U, List(
         FuType.alu -> alu_res,
         FuType.bru -> bru_rd_res
     ))
@@ -78,7 +78,7 @@ class EXU0 extends BaseEXU {
     cmt_instBlk.exception.bpu_mispredict := bru_taken =/= req_instBlk.bpu_taken && req_instBlk.fuType === FuType.bru
     cmt_instBlk.exception.csr_ebreak := csr.io.ebreak && req_instBlk.fuType === FuType.csr
 
-    cmt.valid := RegNext(req.valid) && !redirect.valid
+    cmt.valid := RegNext(req.valid) && !redirect.valid && !RegNext(redirect.valid)
     cmt.bits := RegNext(cmt_instBlk)
 }
 
@@ -112,6 +112,6 @@ class EXU1 extends BaseEXU {
     cmt_instBlk.res := alu_res
     cmt_instBlk.state.finished := true.B
     
-    cmt.valid := RegNext(req.valid) && !redirect.valid
+    cmt.valid := RegNext(req.valid) && !redirect.valid && !RegNext(redirect.valid)
     cmt.bits := RegNext(cmt_instBlk)
 }

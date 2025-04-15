@@ -28,9 +28,9 @@ class Frontend extends ErythModule {
     val ifu = Module(new IFU)
     val bpu = Module(new BPU)
 
-    ftq.io.flush := flush
-    idu.io.flush := flush
-    ifu.io.flush := flush
+    ftq.io.flush := flush || io.from_backend.redirect.valid
+    idu.io.flush := flush || io.from_backend.redirect.valid
+    ifu.io.flush := flush || io.from_backend.redirect.valid
     bpu.io.flush := flush
     bpu.io.redirect <> redirect
 

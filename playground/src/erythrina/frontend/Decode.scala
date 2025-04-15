@@ -11,6 +11,7 @@ import utils.LookupTree
 import erythrina.backend.InstExInfo
 import erythrina.backend.fu.CSRop
 import utils.ZeroExt
+import erythrina.backend.fu.BRUop
 
 trait InstrType {
 	def TypeI   = "b000".U
@@ -83,13 +84,15 @@ class Decoder extends ErythModule with InstrType{
 	val srcTypeList = List(             // type -> (src1_type, src2_type)
         TypeI   -> (SrcType.reg, SrcType.imm),
         TypeB   -> (SrcType.reg, SrcType.reg),
-        TypeJ   -> (SrcType.pc, SrcType.const),
+        TypeJ   -> (SrcType.pc, SrcType.imm),
         TypeR   -> (SrcType.reg, SrcType.reg),
         TypeS   -> (SrcType.reg, SrcType.imm),
         TypeU   -> (SrcType.imm, SrcType.pc)
     )
 
-    val src1_type = LookupTree(instr_type, srcTypeList.map(p => (p._1, p._2._1)))
+    val is_jalr = instr_type === TypeJ && fuOpType === BRUop.jalr
+
+    val src1_type = Mux(is_jalr, SrcType.reg, LookupTree(instr_type, srcTypeList.map(p => (p._1, p._2._1))))
     val src2_type = LookupTree(instr_type, srcTypeList.map(p => (p._1, p._2._2)))
 
 	val src1 = LookupTree(src1_type, List(
@@ -104,7 +107,7 @@ class Decoder extends ErythModule with InstrType{
         SrcType.const   -> 4.U
     ))
 
-    val rf_wen = !(instr_type === TypeB || instr_type === TypeS || instr_type === TypeN)
+    val rf_wen = !(instr_type === TypeB || instr_type === TypeS || instr_type === TypeN) && rd =/= 0.U
 
     // TODO: CSR
     val is_csr = fuType === FuType.csr
@@ -131,7 +134,7 @@ class Decoder extends ErythModule with InstrType{
     rsp_instExInfo.src2_ready := src2_type =/= SrcType.reg || rs2 === 0.U || is_csr
     rsp_instExInfo.rf_wen := rf_wen && !is_csr
 
-    rsp_instExInfo.speculative := is_csr
+    rsp_instExInfo.speculative := !is_csr
 
     out.valid := in.valid
     out.bits := rsp_instExInfo

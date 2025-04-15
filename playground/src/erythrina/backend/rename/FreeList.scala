@@ -48,20 +48,25 @@ class FreeList extends ErythModule {
     val deqPtrExt = Reg(Vec(RenameWidth, new Ptr))  // alloc
     val enqPtrExt = Reg(Vec(CommitWidth, new Ptr))  // free
 
+    val arch_deqPtrExt = Reg(Vec(RenameWidth, new Ptr))  // alloc
+    val arch_enqPtrExt = Reg(Vec(CommitWidth, new Ptr))  // free
+    
+
     for (i <- 0 until RenameWidth) {
         when (reset.asBool) {
             deqPtrExt(i) := i.U.asTypeOf(new Ptr)
+            arch_deqPtrExt(i) := i.U.asTypeOf(new Ptr)
         }
     }
 
     for (i <- 0 until CommitWidth) {
         when (reset.asBool) {
             enqPtrExt(i) := (i + ArchRegNum).U.asTypeOf(new Ptr)
+            arch_enqPtrExt(i) := (i + ArchRegNum).U.asTypeOf(new Ptr)
         }
     }
 
-    val arch_deqPtrExt = RegInit(VecInit((0 until CommitWidth).map(_.U.asTypeOf(new Ptr))))
-    val arch_enqPtrExt = RegInit(VecInit((0 until CommitWidth).map(_.U.asTypeOf(new Ptr))))
+    
 
     /* --------------- Real FreeList ---------------- */
     // free (enq)
@@ -106,7 +111,7 @@ class FreeList extends ErythModule {
     val deqNum = PopCount(canDeq)
     val all_canDeq = canDeq.zip(alloc_req).map{
         case (a, b) => a || !b.valid
-    }.reduce(_ && _)
+    }.reduce(_ && _) && !reset.asBool && !io.redirect.valid
     deqPtrExt.foreach{case x => when (all_canDeq) {x := x + deqNum}}
     alloc_req.foreach{case x => x.ready := all_canDeq}
 

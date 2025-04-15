@@ -94,7 +94,7 @@ class LDU extends ErythModule {
     req.ready := state === sREQ
 
     // AXI
-    val addr = req.bits.src1 + req.bits.imm
+    val addr = req.bits.src1 + req.bits.src2
     axi.ar.valid        := req.valid && state === sREQ && !redirect.valid
     axi.ar.bits         := 0.U.asTypeOf(new AXI4LiteBundleA)
     axi.ar.bits.addr    := addr

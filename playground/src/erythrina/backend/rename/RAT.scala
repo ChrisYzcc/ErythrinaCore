@@ -80,7 +80,7 @@ class RAT extends ErythModule {
     })
 
     val arch_rat = Reg(Vec(ArchRegNum, UInt(PhyRegAddrBits.W)))
-    val phy_rat = Reg(Vec(ArchRegNum, UInt(ArchRegAddrBits.W)))
+    val phy_rat = Reg(Vec(ArchRegNum, UInt(PhyRegAddrBits.W)))
 
     when (reset.asBool) {
         for (i <- 0 until ArchRegNum) {
@@ -124,7 +124,7 @@ class RAT extends ErythModule {
     // Peeker for difftest
     val peeker = Module(new ArchRATPeeker)
     for (i <- 0 until ArchRegNum) {
-        peeker.io.arch_rat_value(i) := phy_rat(i)
+        peeker.io.arch_rat_value(i) := arch_rat(i)
     }
     
 }

@@ -155,7 +155,7 @@ class AX4ISimpleRam[T <: AXI4Lite](_type: T = new AXI4) extends Module {
     val w_has_fire_reg = RegInit(false.B)
     val aw_has_fire_reg = RegInit(false.B)
 
-    val w_addr_Reg = RegInit(0.U(AXI4Params.addrBits.W))
+    val w_addr_reg = RegInit(0.U(AXI4Params.addrBits.W))
     val w_data_reg = RegInit(0.U(AXI4Params.dataBits.W))
     val w_mask_reg = RegInit(0.U((AXI4Params.dataBits/8).W))
 
@@ -166,7 +166,7 @@ class AX4ISimpleRam[T <: AXI4Lite](_type: T = new AXI4) extends Module {
 
     when (axi.aw.fire) {
         aw_has_fire_reg := true.B
-        w_addr_Reg := axi.aw.bits.addr
+        w_addr_reg := axi.aw.bits.addr
     }
 
     when (axi.w.fire) {
@@ -177,9 +177,9 @@ class AX4ISimpleRam[T <: AXI4Lite](_type: T = new AXI4) extends Module {
 
     val w_has_fire = w_has_fire_reg || axi.w.fire
     val aw_has_fire = aw_has_fire_reg || axi.aw.fire
-    val w_addr = Mux(aw_has_fire, w_addr_Reg, axi.aw.bits.addr)
-    val w_data = Mux(w_has_fire, w_data_reg, axi.w.bits.data)
-    val w_mask = Mux(w_has_fire, w_mask_reg, axi.w.bits.strb)
+    val w_addr = Mux(aw_has_fire_reg, w_addr_reg, axi.aw.bits.addr)
+    val w_data = Mux(w_has_fire_reg, w_data_reg, axi.w.bits.data)
+    val w_mask = Mux(w_has_fire_reg, w_mask_reg, axi.w.bits.strb)
 
     switch (wState) {
         is (wREQ) {

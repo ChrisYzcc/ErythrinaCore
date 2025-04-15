@@ -54,9 +54,9 @@ class BPU extends ErythModule {
     }
     
     val ftq_enq_req = io.ftq_enq_req
-    ftq_enq_req.valid   := (RegNext(pred_req.valid) || RegNext(reset.asBool) || io.redirect.valid) && !reset.asBool
-    ftq_enq_req.bits    := Mux(io.redirect.valid,
-                                redirect_block,
+    ftq_enq_req.valid   := (RegNext(pred_req.valid) || RegNext(reset.asBool) || RegNext(io.redirect.valid)) && !reset.asBool
+    ftq_enq_req.bits    := Mux(RegNext(io.redirect.valid),
+                                RegNext(redirect_block),
                                 Mux(RegNext(pred_req.valid),
                                     RegNext(new_block),
                                     init_block)

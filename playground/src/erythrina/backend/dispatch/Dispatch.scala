@@ -9,6 +9,7 @@ import erythrina.memblock.lsq.{LQPtr, SQPtr}
 import erythrina.frontend.FuType
 import erythrina.backend.dispatch
 import erythrina.backend.Redirect
+import erythrina.backend.issue.BypassInfo
 
 class DispatchModule extends ErythModule {
     val io = IO(new Bundle {
@@ -59,6 +60,8 @@ class DispatchModule extends ErythModule {
 
         // redirect
         val redirect = Flipped(ValidIO(new Redirect))
+
+        val bypass = Vec(BypassWidth, Flipped(ValidIO(new BypassInfo)))
     })
 
     val dispatch_req = io.dispatch_req
@@ -156,10 +159,34 @@ class DispatchModule extends ErythModule {
         io.bt_res(i).rs1 := issueBlk.p_rs1
         io.bt_res(i).rs2 := issueBlk.p_rs2
 
-        issueBlk.src1 := Mux(instExBlk.src1_ready, instExBlk.src1, io.rs1(i).data)
-        issueBlk.src2 := Mux(instExBlk.src2_ready, instExBlk.src2, io.rs2(i).data)
-        issueBlk.src1_ready := instExBlk.src1_ready || !io.bt_res(i).rs1_busy
-        issueBlk.src2_ready := instExBlk.src2_ready || !io.bt_res(i).rs2_busy
+        // bypass
+        val bypass = io.bypass
+        val bp_src1_ready_vec = bypass.map{
+            case b =>
+                b.valid && b.bits.bypass_prd === issueBlk.p_rs1
+        }
+        val bp_src1_ready = bp_src1_ready_vec.reduce(_||_)
+        val bp_src1_ready_reg = RegNext(bp_src1_ready)
+        val bp_src2_ready_vec = bypass.map{
+            case b =>
+                b.valid && b.bits.bypass_prd === issueBlk.p_rs2
+        }
+        val bp_src2_ready = bp_src2_ready_vec.reduce(_||_)
+        val bp_src2_ready_reg = RegNext(bp_src2_ready)
+        val bp_src1_data = VecInit(bypass.map(_.bits.bypass_data))(PriorityEncoder(bp_src1_ready_vec))
+        val bp_src1_data_reg = RegNext(bp_src1_data)
+        val bp_src2_data = VecInit(bypass.map(_.bits.bypass_data))(PriorityEncoder(bp_src2_ready_vec))
+        val bp_src2_data_reg = RegNext(bp_src2_data)
+
+        val frm_bp_src1_ready = bp_src1_ready || bp_src1_ready_reg
+        val frm_bp_src2_ready = bp_src2_ready || bp_src2_ready_reg
+        val frm_bp_src1_data = Mux(bp_src1_ready, bp_src1_data, bp_src1_data_reg)
+        val frm_bp_src2_data = Mux(bp_src2_ready, bp_src2_data, bp_src2_data_reg)
+
+        issueBlk.src1 := Mux(instExBlk.src1_ready, instExBlk.src1, Mux(frm_bp_src1_ready, frm_bp_src1_data, io.rs1(i).data))
+        issueBlk.src2 := Mux(instExBlk.src2_ready, instExBlk.src2, Mux(frm_bp_src2_ready, frm_bp_src2_data, io.rs2(i).data))
+        issueBlk.src1_ready := instExBlk.src1_ready || !io.bt_res(i).rs1_busy || frm_bp_src1_ready
+        issueBlk.src2_ready := instExBlk.src2_ready || !io.bt_res(i).rs2_busy || frm_bp_src2_ready
 
         val is_ldu = instExBlk.fuType === FuType.ldu
         val is_stu = instExBlk.fuType === FuType.stu

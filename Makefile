@@ -6,7 +6,7 @@ PRJ = playground
 -include scripts/verilator.mk
 
 IMG ?= 
-ARG ?= -w
+ARG ?= -w -t
 DIFF_SO ?= $(NEMU_HOME)/build/riscv32-nemu-interpreter-so
 
 clean:

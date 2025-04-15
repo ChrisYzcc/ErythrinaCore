@@ -58,6 +58,26 @@ class RenameModule extends ErythModule {
         new_dst(i) := fl_rsp(i)
     }
 
+    // origin p_reg
+    val origin_p_reg = Wire(Vec(RenameWidth, UInt(PhyRegAddrBits.W)))
+    for (i <- 0 until RenameWidth) {
+        if (i == 0) {
+            origin_p_reg(i) := rd_phy(i)
+        } else{
+            val prev_v = rename_req.slice(0, i).map(_.valid)
+            val prev_rd = rename_req.slice(0, i).map(_.bits.a_rd)
+            val prev_wen = rename_req.slice(0, i).map(_.bits.rf_wen)
+
+            val prev_has_same_rd_vec = prev_v.zip(prev_rd).zip(prev_wen).map{
+                case ((v, rd), wen) =>
+                    v && wen && (rd === rename_req(i).bits.a_rd)
+            }
+            val prev_has_same_rd_idx = (i - 1).U - PriorityEncoder(prev_has_same_rd_vec.reverse)
+            val prev_has_same_rd = prev_has_same_rd_vec.reduce(_ || _)
+            origin_p_reg(i) := Mux(prev_has_same_rd, new_dst(prev_has_same_rd_idx), rd_phy(i))
+        }
+    }
+
     // Check for WAW
     val hasWAW = Wire(Vec(RenameWidth, Bool()))
     for (i <- 0 until RenameWidth) {
@@ -118,6 +138,7 @@ class RenameModule extends ErythModule {
         rsp_instExInfo.p_rs1 := final_rs1(i)
         rsp_instExInfo.p_rs2 := final_rs2(i)
         rsp_instExInfo.p_rd  := new_dst(i)
+        rsp_instExInfo.origin_preg := origin_p_reg(i)
 
         rename_rsp(i).valid := (!fl_req(i).valid || fl_req(i).ready) && !redirect.valid
         rename_rsp(i).bits := rsp_instExInfo

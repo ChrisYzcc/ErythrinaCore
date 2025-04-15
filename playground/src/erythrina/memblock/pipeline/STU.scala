@@ -38,7 +38,7 @@ class STU extends ErythModule {
     req.ready := true.B
 
     // Calculate
-    val st_addr = req.bits.src1 + req.bits.imm
+    val st_addr = req.bits.src1 + req.bits.src2
     val st_data = LookupTree(req.bits.fuOpType, List(
         STUop.sb    -> (req.bits.src2(7, 0) << (st_addr(1, 0) << 3.U)),
         STUop.sh    -> (req.bits.src2(15, 0) << ((st_addr(1, 0) & "b10".U) << 3.U)),
@@ -64,7 +64,7 @@ class STU extends ErythModule {
     val s1_st_mask = RegNext(st_mask)
 
     // cmt
-    val cmt_instBlk = RegNext(req.bits)
+    val cmt_instBlk = WireInit(RegNext(req.bits))
 
     cmt_instBlk.res := s1_st_data
     cmt_instBlk.addr := s1_st_addr

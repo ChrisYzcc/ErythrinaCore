@@ -30,7 +30,7 @@ SIM_TARGET = $(OBJ_DIR)/V$(TOP_NAME)
 
 sim:
 	$(call git_commit, "sim RTL") # DO NOT REMOVE THIS LINE!!!
-	$(SIM_TARGET) -d $(DIFF_SO) $(IMG) $(ARG) -t
+	$(SIM_TARGET) -d $(DIFF_SO) $(IMG) $(ARG)
 
 wave:
 	$(GTKWAVE) -r .gtkwaverc waveform
