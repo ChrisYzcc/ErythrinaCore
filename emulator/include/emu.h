@@ -42,6 +42,7 @@ struct EmuArgs {
 
     bool dump_wave = false;
     bool enable_diff = true;
+    bool dump_trace = false;
 };
 
 class Emulator {

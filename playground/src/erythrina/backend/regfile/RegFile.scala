@@ -7,24 +7,49 @@ import erythrina.HasErythCoreParams
 
 class RegFilePeeker extends BlackBox with HasBlackBoxInline with HasErythCoreParams {
     val io = IO(new Bundle {
-        val idx = Output(UInt(PhyRegAddrBits.W))
-        val value = Input(UInt(XLEN.W))
+        val rf_value_vec = Vec(PhyRegNum, Input(UInt(XLEN.W)))
     })
-    setInline(s"RegFilePeeker.v",
-    s"""module RegFilePeeker(
-        |   output logic [${PhyRegAddrBits-1}:0] idx,
-        |   input wire [${XLEN-1}:0] value
-        |);
-        |   export "DPI-C" function peek_regfile;
-        |   
-        |   function int peek_regfile(
-        |       input logic [${PhyRegAddrBits-1}:0] reg_idx,
-        |   );
-        |       assign idx = reg_idx;
-        |       return value;
-        |   endfunction
-        |endmodule
-        """.stripMargin)
+
+    val portString = io.rf_value_vec.zipWithIndex.map{
+        case (rf_value, i) =>
+            s"""
+            |   input   [${XLEN-1}:0] rf_value_vec_${i}
+            """.stripMargin
+    }
+
+    val logicDefString = s"""
+        |   logic [${XLEN-1}:0] rf_values [${PhyRegNum-1}:0];
+        """.stripMargin
+
+    val logicAssignString = (0 until PhyRegNum).map{
+        i => 
+            s"""
+            |   assign rf_values[${i}] = rf_value_vec_${i};
+            """.stripMargin
+    }
+
+    val verilogString = s"""
+    |module RegFilePeeker(
+    |   ${portString.mkString(",\n")}
+    |);
+    |   ${logicDefString}
+    |   ${logicAssignString.mkString("\n")}
+    |
+    |   export "DPI-C" task set_rf_idx;
+    |   export "DPI-C" task get_rf_value;
+    |   
+    |   logic [${PhyRegAddrBits-1}:0] rf_idx;
+    |   task set_rf_idx(input logic [${PhyRegAddrBits-1}:0] idx);
+    |       rf_idx = idx;
+    |   endtask
+    |
+    |   task get_rf_value(output logic [${XLEN-1}:0] value);
+    |       value = rf_values[rf_idx];
+    |   endtask
+    |endmodule
+    """.stripMargin
+
+    setInline("RegFilePeeker.sv", verilogString)
 }
 
 class RegFile(numReadPorts: Int, numWritePorts: Int) extends ErythModule {
@@ -66,5 +91,7 @@ class RegFile(numReadPorts: Int, numWritePorts: Int) extends ErythModule {
 
     // For Difftest
     val peeker = Module(new RegFilePeeker)
-    peeker.io.value := regFile(peeker.io.idx)
+    for (i <- 0 until PhyRegNum) {
+        peeker.io.rf_value_vec(i) := regFile(i)
+    }
 }

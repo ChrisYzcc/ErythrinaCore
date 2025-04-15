@@ -51,8 +51,10 @@ int get_diff_infos(diff_infos *infos, int req_idx) {
     assert(scope);
     svSetScope(scope);
 
-    read_diff_info(
-        &idx, &valid, &pc, &inst, &rf_wen, &rf_waddr, &rf_wdata,
+    set_diff_idx(&idx);
+
+    get_diff_info(
+        &valid, &pc, &inst, &rf_wen, &rf_waddr, &rf_wdata,
         &mem_wen, &mem_addr, &mem_data, &mem_mask
     );
 

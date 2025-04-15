@@ -3,6 +3,7 @@
 #include "common.h"
 #include "difftest.h"
 #include "isa.h"
+#include "trace.h"
 #include "svdpi.h"
 #include "verilated.h"
 #include "verilated_fst_c.h"
@@ -18,13 +19,14 @@ EmuArgs parse_args(int argc, const char *argv[]) {
         {"max-cycles", required_argument, NULL, 'c'},
         {"max-inst", required_argument, NULL, 'i'},
         {"dump-wave", no_argument, NULL, 'w'},
+        {"dump-trace", no_argument, NULL, 't'},
         {"difftest", required_argument, NULL, 'd'},
         {0, 0, NULL, 0}
     };
 
     int opt;
 
-    while ((opt = getopt_long(argc, (char *const *)argv, "-c:i:d:w", table, NULL)) != -1) {
+    while ((opt = getopt_long(argc, (char *const *)argv, "-c:i:d:wt", table, NULL)) != -1) {
         switch (opt) {
             case 'c':
                 args.max_cycles = strtoull(optarg, NULL, 0);
@@ -34,6 +36,9 @@ EmuArgs parse_args(int argc, const char *argv[]) {
                 break;
             case 'w':
                 args.dump_wave = true;
+                break;
+            case 't':
+                args.dump_trace = true;
                 break;
             case 'd':{
                 args.enable_diff = true;
@@ -49,6 +54,7 @@ EmuArgs parse_args(int argc, const char *argv[]) {
                 printf("\t-c <max-cycles>         Run <max-cycles> cycles.\n");
                 printf("\t-i <max-inst>           Run <max-inst> instructions.\n");
                 printf("\t-w                      Dump waveform.\n");
+                printf("\t-t                      Dump trace.\n");
                 printf("\t-d <ref-so>             Enable diff.\n");
                 exit(0);
         }
@@ -62,6 +68,8 @@ Emulator::Emulator(int argc, const char *argv[])
     args = parse_args(argc, argv);
 
     pc_rstvec = PC_RSTVEC;
+    
+    printf("===================== EMU =====================\n");
 
     // wave
     if (args.dump_wave) {
@@ -81,27 +89,34 @@ Emulator::Emulator(int argc, const char *argv[])
         init_difftest(img_size, 1234);
     }
 
+    // trace
+    if (args.dump_trace) {
+        printf("[Info] Enable trace dump.\n");
+        trace_init();
+    }
+
     printf("Start simulation...\n");
 
     // reset
-    printf("[SIM] Reset DUT...\n");
+    printf("Reset DUT...\n");
     reset_ncycles(args.reset_cycles);
     
 }
 
 Emulator::~Emulator() {
+    printf("-----------------------------------------------\n");
     switch (state) {
         case EMU_HIT_GOOD:
-            printf("[SIM] Simulation Hit %sGood%s Trap\n", FontGreen, Restore);
+            printf("Hit %sGood%s Trap\n", FontGreen, Restore);
             break;
         case EMU_HIT_BAD:
-            printf("[SIM] Simulation Hit %sBad%s Trap\n", FontRed, Restore);
+            printf("Hit %sBad%s Trap\n", FontRed, Restore);
             break;
         case EMU_HIT_BREAK:
-            printf("[SIM] Simulation Hit %sBreak%s Trap\n", FontBlue, Restore);
+            printf("Hit %sBreak%s Trap\n", FontBlue, Restore);
             break;
         default:
-            printf("[SIM] Simulation Hit %sUnknown%s Trap\n", FontRed, Restore);
+            printf("Hit %sUnknown%s Trap\n", FontRed, Restore);
             break;
     }
 
@@ -109,7 +124,17 @@ Emulator::~Emulator() {
         tfp->close();
         delete tfp;
     }
+    
+    if (state == EMU_HIT_BAD) {
+        status = 1;
+    }
+
+    if (args.dump_trace) {
+        trace_dump();
+    }
+
     delete dut_ptr;
+    printf("===============================================\n");
 }
 
 inline void Emulator::reset_ncycles(size_t cycles) {
@@ -185,6 +210,11 @@ void Emulator::trap(TrapCode trap_code, uint32_t trap_info) {
             state = EMU_HIT_BREAK;
             break;
         }
+        case TRAP_DIFF_ERR: {
+            printf("[Error] Difftest error.\n");
+            state = EMU_HIT_BAD;
+            break;
+        }
         default: {
             printf("[Error] Unknown trap code: %d, info: %d\n", trap_code, trap_info);
             state = EMU_HIT_BAD;
@@ -201,7 +231,10 @@ void Emulator::get_npc_regfiles() {
     // Get RAT from NPC
     uint32_t rat[ARCH_REG_NUM];
     for (int i = 0; i < ARCH_REG_NUM; i++) {
-        rat[i] = peek_arch_rat((svLogicVecVal *)&i);
+        set_arch_reg((svLogicVecVal *)&i);
+        svLogicVecVal rat_val;
+        get_phy_reg((svLogicVecVal *)&rat_val);
+        rat[i] = (uint32_t)rat_val.aval;
     }
 
     scope = svGetScopeFromName("TOP.SimTop.core.backend.regfile.peeker");
@@ -209,7 +242,10 @@ void Emulator::get_npc_regfiles() {
     svSetScope(scope);
     // Get RF from NPC
     for (int i = 0; i < ARCH_REG_NUM; i++) {
-        npc_arch_state.gpr[i] = peek_regfile((svLogicVecVal *)&rat[i]);
+        set_rf_idx((svLogicVecVal *)&i);
+        svLogicVecVal rf_val;
+        get_rf_value((svLogicVecVal *)&rf_val);
+        npc_arch_state.gpr[i] = (uint32_t)rf_val.aval;
     }
 }
 
@@ -225,6 +261,10 @@ int Emulator::step() {
             npc_arch_state.pc = infos.pc;
             if (infos.rf_wen) {
                 npc_arch_state.gpr[infos.rf_waddr] = infos.rf_wdata;
+            }
+
+            if (args.dump_trace) {
+                trace(infos.pc, infos.instr);
             }
         }
     }
@@ -274,6 +314,7 @@ void Emulator::diff_states(CPUState *ref) {
 }
 
 void Emulator::run() {
+    printf("-----------------------------------------------\n");
     for (;;) {
         if (state != EMU_RUN) {
             break;
