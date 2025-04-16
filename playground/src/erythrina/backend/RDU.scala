@@ -97,31 +97,38 @@ class RDU extends ErythModule {
     val renameModule = Module(new RenameModule)
     val dispatchModule = Module(new DispatchModule)
 
+    val s0_valid = Wire(Bool())
+    val s1_valid = RegInit(false.B)
+    val s2_valid = RegInit(false.B)
+
+    val s0_ready = Wire(Bool())
     val s1_ready = Wire(Bool())
     val s2_ready = Wire(Bool())
 
+    val s0_task = Wire(Vec(RenameWidth, Valid(new InstExInfo)))
+    val s1_task = RegInit(0.U.asTypeOf(Vec(RenameWidth, Valid(new InstExInfo))))
+    val s2_task = RegInit(0.U.asTypeOf(Vec(DispatchWidth, Valid(new InstExInfo))))
+
+    /* -------------- Stage 0 -------------- */
     val req = io.req
+    s0_valid := req.map(_.valid).reduce(_||_) && !redirect.valid
+    s0_ready := !s0_valid || s1_ready || redirect.valid
+    for (i <- 0 until RenameWidth) {
+        s0_task(i).valid := req(i).valid && !redirect.valid
+        s0_task(i).bits := req(i).bits
+    }
+
+    for (i <- 0 until RenameWidth) {
+        req(i).ready := s0_ready
+    }
+
     /* -------------- Stage 1 -------------- */
-    val s1IDLE :: s1RENAME ::s1WAIT :: Nil = Enum(3)
-    val s1_state = RegInit(s1IDLE)
-    switch (s1_state) {
-        is (s1IDLE) {
-            when (req.map(_.fire).reduce(_||_) && !redirect.valid) {
-                s1_state := s1RENAME
-            }
-        }
-        is (s1RENAME) {
-            when (s1_ready && s2_ready || redirect.valid) {
-                s1_state := s1IDLE
-            }.elsewhen(s1_ready && !s2_ready) {
-                s1_state := s1WAIT
-            }
-        }
-        is (s1WAIT) {
-            when (s2_ready || redirect.valid) {
-                s1_state := s1IDLE
-            }
-        }
+    when (s0_valid && s1_ready) {
+        s1_valid := s0_valid && !redirect.valid
+        s1_task := s0_task
+    }.elsewhen(!s0_valid && s1_ready) {
+        s1_valid := false.B
+        s1_task := 0.U.asTypeOf(s1_task)
     }
 
     renameModule.io.rs1 <> io.rat_rs1
@@ -135,46 +142,30 @@ class RDU extends ErythModule {
     renameModule.io.fl_rsp <> io.fl_rsp
     renameModule.io.bt_alloc <> io.bt_alloc
 
-    val s1_req_vec = RegInit(VecInit(Seq.fill(RenameWidth)(0.U.asTypeOf(new InstExInfo))))
-    val s1_valid_vec = RegInit(VecInit(Seq.fill(RenameWidth)(false.B)))
-    when (redirect.valid) {
-        for (i <- 0 until RenameWidth) {
-            s1_req_vec(i) := 0.U.asTypeOf(new InstExInfo)
-            s1_valid_vec(i) := false.B
-        }
-    }.elsewhen(s1_state === s1IDLE && req.map(_.fire).reduce(_||_)) {
-        for (i <- 0 until RenameWidth) {
-            s1_req_vec(i) := req(i).bits
-            s1_valid_vec(i) := req(i).valid
-        }
-    }
-
     for (i <- 0 until RenameWidth) {
-        renameModule.io.rename_req(i).valid := s1_state === s1RENAME && s1_valid_vec(i) && !redirect.valid
-        renameModule.io.rename_req(i).bits := s1_req_vec(i)
-
-        req(i).ready := s1_state === s1IDLE && !redirect.valid
+        renameModule.io.rename_req(i).valid := s1_valid && s1_task(i).valid && !redirect.valid
+        renameModule.io.rename_req(i).bits := s1_task(i).bits
     }
 
     val rename_rsp = renameModule.io.rename_rsp
-    val renamed_blk_vec = WireInit(VecInit(Seq.fill(RenameWidth)(0.U.asTypeOf(new InstExInfo))))
-    val renamed_blk_vec_reg = RegInit(VecInit(Seq.fill(RenameWidth)(0.U.asTypeOf(new InstExInfo))))
+    val s1_to_s2_task = Wire(Vec(DispatchWidth, Valid(new InstExInfo)))
+    for (i <- 0 until DispatchWidth) {
+        s1_to_s2_task(i).valid := rename_rsp(i).valid && !redirect.valid
+        s1_to_s2_task(i).bits := rename_rsp(i).bits
+    }
+
     val rename_all_ready = rename_rsp.map(_.valid).reduce(_ && _)
-
-    for (i <- 0 until RenameWidth) {
-        renamed_blk_vec(i) := rename_rsp(i).bits
-    }
-
-    s1_ready := s1_state === s1WAIT || rename_all_ready || redirect.valid
-    when (s1_state === s1RENAME && rename_all_ready) {
-        for (i <- 0 until RenameWidth) {
-            renamed_blk_vec_reg(i) := renamed_blk_vec(i)
-        }
-    }
-
-    val s1_to_s2_req = Mux(s1_state === s1RENAME, renamed_blk_vec, renamed_blk_vec_reg)
+    s1_ready := !s1_valid || rename_all_ready && s2_ready || redirect.valid
 
     /* -------------- Stage 2 -------------- */
+    when (s1_valid && s2_ready) {
+        s2_valid := s1_valid && !redirect.valid
+        s2_task := s1_to_s2_task
+    }.elsewhen(!s1_valid && s2_ready) {
+        s2_valid := false.B
+        s2_task := 0.U.asTypeOf(s2_task)
+    }
+
     val dispatch_req = dispatchModule.io.dispatch_req
 
     dispatchModule.io.rob_alloc_req <> io.rob_alloc_req
@@ -196,8 +187,8 @@ class RDU extends ErythModule {
 
     s2_ready := dispatch_req.map(_.ready).reduce(_ && _) || redirect.valid
     for (i <- 0 until DispatchWidth) {
-        dispatch_req(i).valid := s1_valid_vec(i) && !redirect.valid
-        dispatch_req(i).bits := s1_to_s2_req(i)
+        dispatch_req(i).valid := s2_valid && s2_task(i).valid && !redirect.valid
+        dispatch_req(i).bits := s2_task(i).bits
     }
 
     /* ---------------- Redirect ---------------- */

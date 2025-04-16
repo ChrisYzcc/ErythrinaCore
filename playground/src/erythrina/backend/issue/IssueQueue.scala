@@ -135,11 +135,13 @@ class IssueQueue(exu_num:Int, name:String, size:Int) extends ErythModule {
     for (i <- 0 until BypassWidth) {
         when (bypass(i).valid) {
             for (j <- 0 until size) {
-                entries(j).src1_ready := entries(j).src1_ready || entries(j).p_rs1 === bypass(i).bits.bypass_prd
-                entries(j).src1 := Mux(entries(j).src1_ready, entries(j).src1, bypass(i).bits.bypass_data)
+                when (valids(j)) {
+                    entries(j).src1_ready := entries(j).src1_ready || entries(j).p_rs1 === bypass(i).bits.bypass_prd
+                    entries(j).src1 := Mux(entries(j).src1_ready, entries(j).src1, bypass(i).bits.bypass_data)
 
-                entries(j).src2_ready := entries(j).src2_ready || entries(j).p_rs2 === bypass(i).bits.bypass_prd
-                entries(j).src2 := Mux(entries(j).src2_ready, entries(j).src2, bypass(i).bits.bypass_data)
+                    entries(j).src2_ready := entries(j).src2_ready || entries(j).p_rs2 === bypass(i).bits.bypass_prd
+                    entries(j).src2 := Mux(entries(j).src2_ready, entries(j).src2, bypass(i).bits.bypass_data)
+                }
             }   
         }
     }
