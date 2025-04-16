@@ -32,35 +32,40 @@ class IFU extends ErythModule {
     }
 
     // TODO: use pipeline
-    val sREQ :: sRECV :: Nil = Enum(2)
-    val state = RegInit(sREQ)
+    val sIDLE::sREQ :: sRECV :: Nil = Enum(3)
+    val state = RegInit(sIDLE)
     switch (state) {
+        is (sIDLE) {
+            when (fetch_req.fire && !io.flush) {
+                state := sREQ
+            }
+        }
         is (sREQ) {
             when (axi.ar.fire && !io.flush) {
                 state := sRECV
             }
         }
         is (sRECV) {
-            when (axi.r.fire && axi_req_inflight_cnt === 1.U || io.flush) {
-                state := sREQ
+            when (axi.r.fire && axi_req_inflight_cnt === 1.U) {
+                state := sIDLE
             }
         }
     }
 
-    axi.ar.valid        := fetch_req.valid && state === sREQ && !io.flush
+    // AXI
+    val ar_blk = RegEnable(fetch_req.bits, 0.U.asTypeOf(new InstFetchBlock), fetch_req.fire && !io.flush)
+
+    axi.ar.valid        := state === sREQ && !io.flush
     axi.ar.bits         := 0.U.asTypeOf(new AXI4LiteBundleA)
-    axi.ar.bits.addr    := Mux(fetch_req.bits.instVec(0).valid, fetch_req.bits.instVec(0).pc, fetch_req.bits.instVec(1).pc)     // TODO: alignment?
+    axi.ar.bits.addr    := Mux(ar_blk.instVec(0).valid, ar_blk.instVec(0).pc, ar_blk.instVec(1).pc)     // TODO: alignment?
     
+    val r_blk = RegEnable(ar_blk, 0.U.asTypeOf(new InstFetchBlock), axi.ar.fire && !io.flush)
     axi.r.ready     := state === sRECV
 
     // response to FTQ
-    fetch_req.ready := axi.ar.ready && state === sREQ
+    fetch_req.ready := state === sIDLE
     
-    val inflight_block = RegInit(0.U.asTypeOf(new InstFetchBlock))
-    when (fetch_req.fire) {
-        inflight_block  := fetch_req.bits
-    }
-    val rsp_block = WireInit(inflight_block)
+    val rsp_block = WireInit(r_blk)
     rsp_block.instVec(0).instr  := axi.r.bits.data(XLEN - 1, 0)
     rsp_block.instVec(1).instr  := axi.r.bits.data(2 * XLEN - 1, XLEN)
 
