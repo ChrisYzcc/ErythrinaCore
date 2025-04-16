@@ -13,8 +13,8 @@ class SimTop extends Module {
     val core = Module(new ErythrinaCore)
     val axi_arbiter = Module(new AXI4ArbiterNto1(2, new AXI4Lite))
 
-    axi_arbiter.io.in(0) <> core.io.i_axi
-    axi_arbiter.io.in(1) <> core.io.d_axi
+    axi_arbiter.io.in(1) <> core.io.i_axi
+    axi_arbiter.io.in(0) <> core.io.d_axi
 
     val axi_simpleRam = Module(new AX4ISimpleRam(new AXI4Lite))
     axi_simpleRam.io.axi <> axi_arbiter.io.out

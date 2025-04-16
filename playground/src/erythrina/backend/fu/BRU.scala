@@ -11,6 +11,7 @@ class BRU extends ErythModule {
         val pc = Input(UInt(XLEN.W))
         val src1 = Input(UInt(XLEN.W))
         val src2 = Input(UInt(XLEN.W))
+        val imm = Input(UInt(XLEN.W))
         val bruop = Input(FuOpType.apply())
 
         val taken = Output(Bool())
@@ -18,7 +19,7 @@ class BRU extends ErythModule {
         val rd_res = Output(UInt(XLEN.W))
     })
 
-    val (pc, src1, src2, bruop) = (io.pc, io.src1, io.src2, io.bruop)
+    val (pc, src1, src2, bruop, imm) = (io.pc, io.src1, io.src2, io.bruop, io.imm)
 
     val iseq = src1 === src2
     val isne = !iseq
@@ -40,7 +41,7 @@ class BRU extends ErythModule {
         BRUop.jalr -> true.B
     ))
 
-    val taken_target = Mux(isjalr, Cat((src1 + src2)(XLEN - 1, 1), 0.B), src1 + src2)
+    val taken_target = Mux(isjalr, Cat((src1 + imm)(XLEN - 1, 1), 0.B), pc + imm)
     val target = Mux(taken, taken_target, pc + 4.U)
     val rd_res = pc + 4.U
 

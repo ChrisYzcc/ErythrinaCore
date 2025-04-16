@@ -70,6 +70,7 @@ class EXU0 extends BaseEXU {
     bru.io.src1 := req_instBlk.src1
     bru.io.src2 := req_instBlk.src2
     bru.io.bruop := req_instBlk.fuOpType
+    bru.io.imm := req_instBlk.imm
     val bru_taken = bru.io.taken
     val bru_target = bru.io.target
     val bru_rd_res = bru.io.rd_res
