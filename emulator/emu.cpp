@@ -146,6 +146,8 @@ Emulator::~Emulator() {
 
     delete dut_ptr;
     printf("===============================================\n");
+    printf("Total Cycles: %ld, Total Instrs: %ld\nIPC: %.2lf\n",
+        cycles, inst_count, (double)inst_count / cycles);
 }
 
 inline void Emulator::reset_ncycles(size_t cycles) {
