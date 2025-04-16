@@ -41,7 +41,9 @@ class IFU extends ErythModule {
             }
         }
         is (sREQ) {
-            when (axi.ar.fire && !io.flush) {
+            when (io.flush) {
+                state := sIDLE
+            }.elsewhen(axi.ar.fire && !io.flush) {
                 state := sRECV
             }
         }
