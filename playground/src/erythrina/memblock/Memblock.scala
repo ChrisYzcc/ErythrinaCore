@@ -92,7 +92,7 @@ class Memblock extends ErythModule {
     storeQueue.io.alloc_upt <> io.from_backend.sq_alloc_upt
     
     for (i <- 0 until CommitWidth) {
-        storeQueue.io.rob_commit(i).valid := io.from_backend.rob_commits(i).valid
+        storeQueue.io.rob_commit(i).valid := io.from_backend.rob_commits(i).valid && io.from_backend.rob_commits(i).bits.isStroe
         storeQueue.io.rob_commit(i).bits := io.from_backend.rob_commits(i).bits.sqPtr
     }
 
@@ -106,7 +106,7 @@ class Memblock extends ErythModule {
     loadQueue.io.alloc_upt <> io.from_backend.lq_alloc_upt
 
     for (i <- 0 until CommitWidth) {
-        loadQueue.io.rob_commit(i).valid := io.from_backend.rob_commits(i).valid
+        loadQueue.io.rob_commit(i).valid := io.from_backend.rob_commits(i).valid && io.from_backend.rob_commits(i).bits.isLoad
         loadQueue.io.rob_commit(i).bits := io.from_backend.rob_commits(i).bits.lqPtr
     }
 

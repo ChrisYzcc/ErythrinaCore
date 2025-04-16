@@ -93,6 +93,13 @@ class InstExInfo extends ErythBundle {
 
         this.bpu_taken := inst_info.bpu_taken
     }
+
+    def isStroe = {
+        this.fuType === FuType.stu
+    }
+    def isLoad = {
+        this.fuType === FuType.ldu
+    }
 }
 
 class Redirect extends ErythBundle {
