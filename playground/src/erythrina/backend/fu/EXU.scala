@@ -19,7 +19,21 @@ class BaseEXU extends ErythModule {
         val cmt = ValidIO(new InstExInfo)
         val exu_info = Output(new EXUInfo)
         val redirect = Flipped(ValidIO(new Redirect))
+
+        val rf_write = ValidIO(new Bundle {
+            val addr = UInt(PhyRegAddrBits.W)
+            val data = UInt(XLEN.W)
+        })
+
+        val bt_free_req = ValidIO(UInt(PhyRegAddrBits.W))
     })
+
+    io.rf_write.valid := io.cmt.valid && io.cmt.bits.rf_wen
+    io.rf_write.bits.addr := io.cmt.bits.p_rd
+    io.rf_write.bits.data := io.cmt.bits.res
+
+    io.bt_free_req.valid := io.cmt.valid && io.cmt.bits.rf_wen
+    io.bt_free_req.bits := io.cmt.bits.p_rd
 }
 
 // exu0: alu, bru, csr
@@ -80,6 +94,7 @@ class EXU0 extends BaseEXU {
 
     cmt.valid := RegNext(req.valid) && !redirect.valid && !RegNext(redirect.valid)
     cmt.bits := RegNext(cmt_instBlk)
+
 }
 
 // exu1: alu

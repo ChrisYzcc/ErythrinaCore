@@ -38,7 +38,7 @@ class STU extends ErythModule {
     req.ready := true.B
 
     // Calculate
-    val st_addr = req.bits.src1 + req.bits.src2
+    val st_addr = req.bits.src1 + req.bits.imm
     val st_data = LookupTree(req.bits.fuOpType, List(
         STUop.sb    -> (req.bits.src2(7, 0) << (st_addr(1, 0) << 3.U)),
         STUop.sh    -> (req.bits.src2(15, 0) << ((st_addr(1, 0) & "b10".U) << 3.U)),
@@ -52,7 +52,7 @@ class STU extends ErythModule {
 
     // Forwarding
     st_fwd(0).valid := s0_valid
-    st_fwd(0).bits.addr := st_addr
+    st_fwd(0).bits.addr := Cat(st_addr(31, 2), 0.U(2.W))
     st_fwd(0).bits.data := st_data
     st_fwd(0).bits.mask := st_mask
     st_fwd(0).bits.robPtr := req.bits.robPtr
@@ -67,7 +67,7 @@ class STU extends ErythModule {
     val cmt_instBlk = WireInit(RegNext(req.bits))
 
     cmt_instBlk.res := s1_st_data
-    cmt_instBlk.addr := s1_st_addr
+    cmt_instBlk.addr := Cat(s1_st_addr(31, 2), 0.U(2.W))
     cmt_instBlk.mask := s1_st_mask
     cmt_instBlk.state.finished := true.B
 
@@ -76,7 +76,7 @@ class STU extends ErythModule {
 
     // Forwarding
     st_fwd(1).valid := s1_valid
-    st_fwd(1).bits.addr := s1_st_addr
+    st_fwd(1).bits.addr := Cat(s1_st_addr(31, 2), 0.U(2.W))
     st_fwd(1).bits.data := s1_st_data
     st_fwd(1).bits.mask := s1_st_mask
     st_fwd(1).bits.robPtr := cmt_instBlk.robPtr

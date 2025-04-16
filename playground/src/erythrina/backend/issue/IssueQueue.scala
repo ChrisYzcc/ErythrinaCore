@@ -132,17 +132,27 @@ class IssueQueue(exu_num:Int, name:String, size:Int) extends ErythModule {
 
     // handle bypass
     val bypass = io.bypass
-    for (i <- 0 until BypassWidth) {
-        when (bypass(i).valid) {
-            for (j <- 0 until size) {
-                when (valids(j)) {
-                    entries(j).src1_ready := entries(j).src1_ready || entries(j).p_rs1 === bypass(i).bits.bypass_prd
-                    entries(j).src1 := Mux(entries(j).src1_ready, entries(j).src1, bypass(i).bits.bypass_data)
+    for (i <- 0 until size) {
+        val bypass_hit_src1_vec = bypass.map{
+            case b =>
+                b.valid && b.bits.bypass_prd === entries(i).p_rs1 && valids(i) && !entries(i).src1_ready
+        }
+        val bypass_hit_src2_vec = bypass.map{
+            case b =>
+                b.valid && b.bits.bypass_prd === entries(i).p_rs2 && valids(i) && !entries(i).src2_ready
+        }
+        val bypass_hit_src1 = bypass_hit_src1_vec.reduce(_||_)
+        val bypass_hit_src2 = bypass_hit_src2_vec.reduce(_||_)
+        val bypass_hit_src1_idx = PriorityEncoder(bypass_hit_src1_vec)
+        val bypass_hit_src2_idx = PriorityEncoder(bypass_hit_src2_vec)
 
-                    entries(j).src2_ready := entries(j).src2_ready || entries(j).p_rs2 === bypass(i).bits.bypass_prd
-                    entries(j).src2 := Mux(entries(j).src2_ready, entries(j).src2, bypass(i).bits.bypass_data)
-                }
-            }   
+        when (bypass_hit_src1) {
+            entries(i).src1 := bypass(bypass_hit_src1_idx).bits.bypass_data
+            entries(i).src1_ready := true.B
+        }
+        when (bypass_hit_src2) {
+            entries(i).src2 := bypass(bypass_hit_src2_idx).bits.bypass_data
+            entries(i).src2_ready := true.B
         }
     }
 

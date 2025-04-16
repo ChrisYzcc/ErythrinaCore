@@ -15,7 +15,7 @@ class BusyTable extends ErythModule {
         })
 
         val alloc = Vec(DispatchWidth, Flipped(ValidIO(UInt(PhyRegAddrBits.W))))
-        val free  = Vec(CommitWidth, Flipped(ValidIO(UInt(PhyRegAddrBits.W))))
+        val free  = Vec(CommitWithDataWidth, Flipped(ValidIO(UInt(PhyRegAddrBits.W))))
 
         val redirect = Flipped(ValidIO(new Redirect))
     })
@@ -35,8 +35,8 @@ class BusyTable extends ErythModule {
         }
     }
 
-    // free (from rob)
-    for (i <- 0 until CommitWidth) {
+    // free (from EXU)
+    for (i <- 0 until CommitWithDataWidth) {
         when(io.free(i).valid) {
             busy_table(io.free(i).bits) := false.B
         }

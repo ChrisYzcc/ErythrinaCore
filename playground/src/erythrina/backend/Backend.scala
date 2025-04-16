@@ -48,6 +48,13 @@ class Backend extends ErythModule {
             val stu_info = Input(new EXUInfo)
             val stu_cmt = Flipped(ValidIO(new InstExInfo))
 
+            val ldu_rf_write = Flipped(ValidIO(new Bundle {
+                val addr = UInt(PhyRegAddrBits.W)
+                val data = UInt(XLEN.W)
+            }))
+
+            val ldu_bt_free_req = Flipped(ValidIO(UInt(PhyRegAddrBits.W)))
+
             val lq_except_infos = Vec(LoadQueSize, Flipped(ValidIO(new ROBPtr)))
         }
 
@@ -64,7 +71,7 @@ class Backend extends ErythModule {
     val rdu = Module(new RDU)
     val rob = Module(new ROB)
     val rat = Module(new RAT)
-    val regfile = Module(new RegFile(DispatchWidth * 2, CommitWidth))
+    val regfile = Module(new RegFile(DispatchWidth * 2, CommitWithDataWidth))
     val busyTable = Module(new BusyTable)
     val freelist = Module(new FreeList)
 
@@ -134,13 +141,21 @@ class Backend extends ErythModule {
     exu0.io.req <> isq_int.io.deq(0)
     exu0.io.exu_info <> isq_int.io.exu_info(0)
     exu0.io.cmt <> rob.io.fu_commit(0)
+    exu0.io.bt_free_req <> busyTable.io.free(0)
+    exu0.io.rf_write <> regfile.io.writePorts(0)
+
     exu1.io.req <> isq_int.io.deq(1)
     exu1.io.exu_info <> isq_int.io.exu_info(1)
     exu1.io.cmt <> rob.io.fu_commit(1)
+    exu1.io.bt_free_req <> busyTable.io.free(1)
+    exu1.io.rf_write <> regfile.io.writePorts(1)
 
     io.to_memblock.ldu_req <> isq_ld.io.deq(0)
     io.from_memblock.ldu_cmt <> rob.io.fu_commit(2)
     io.from_memblock.ldu_info <> isq_ld.io.exu_info(0)
+    io.from_memblock.ldu_bt_free_req <> busyTable.io.free(2)
+    io.from_memblock.ldu_rf_write <> regfile.io.writePorts(2)
+    
     io.to_memblock.stu_req <> isq_st.io.deq(0)
     io.from_memblock.stu_cmt <> rob.io.fu_commit(3)
     io.from_memblock.stu_info <> isq_st.io.exu_info(0)
@@ -149,9 +164,7 @@ class Backend extends ErythModule {
     rat.io.wr_cmt <> rob.io.upt_arch_rat
 
     /* --------------- ROB -----------------*/
-    rob.io.reg_write <> regfile.io.writePorts
     rob.io.rob_commit <> io.to_memblock.rob_commits
-    rob.io.bt_free_req <> busyTable.io.free
     rob.io.fl_free_req <> freelist.io.free_req
     rob.io.difftest <> io.difftest
     rob.io.lq_except_infos <> io.from_memblock.lq_except_infos

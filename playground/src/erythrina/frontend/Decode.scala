@@ -86,7 +86,7 @@ class Decoder extends ErythModule with InstrType{
         TypeB   -> (SrcType.reg, SrcType.reg),
         TypeJ   -> (SrcType.pc, SrcType.imm),
         TypeR   -> (SrcType.reg, SrcType.reg),
-        TypeS   -> (SrcType.reg, SrcType.imm),
+        TypeS   -> (SrcType.reg, SrcType.reg),
         TypeU   -> (SrcType.imm, SrcType.pc)
     )
 

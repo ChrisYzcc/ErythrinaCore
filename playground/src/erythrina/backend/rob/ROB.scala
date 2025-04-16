@@ -27,15 +27,6 @@ class ROB extends ErythModule {
         // rob commit
         val rob_commit = Vec(CommitWidth, ValidIO(new InstExInfo))
 
-        // to RegFile
-        val reg_write = Vec(CommitWidth, ValidIO(new Bundle{
-            val addr = UInt(PhyRegAddrBits.W)
-            val data = UInt(XLEN.W)
-        }))
-        
-        // to BusyTable
-        val bt_free_req = Vec(CommitWidth, ValidIO(UInt(PhyRegAddrBits.W)))
-
         // to FreeList
         val fl_free_req = Vec(CommitWidth, ValidIO(UInt(PhyRegAddrBits.W)))
 
@@ -122,9 +113,7 @@ class ROB extends ErythModule {
     allocPtrExt.foreach{case x => when (all_canAlloc) {x := x + allocNum}}
 
     // Commit (deq)
-    val reg_write = io.reg_write
     val fl_free_req = io.fl_free_req
-    val bt_free_req = io.bt_free_req
     val rat_req = io.upt_arch_rat
 
     val commit_needDeq = Wire(Vec(CommitWidth, Bool()))
@@ -136,15 +125,6 @@ class ROB extends ErythModule {
 
         commit_needDeq(i) := entries(ptr.value).state.finished && !entries(ptr.value).exception.has_exception
         commit_canDeq(i)  := commit_needDeq(i) && ptr < allocPtrExt(0) && !prev_has_unfinished
-
-        // RegWrite
-        reg_write(i).valid := (if (i == 0) redirect.valid || commit_canDeq(i) else commit_canDeq(i)) && entries(ptr.value).rf_wen
-        reg_write(i).bits.addr := entries(ptr.value).p_rd
-        reg_write(i).bits.data := entries(ptr.value).res
-
-        // BusyTable
-        bt_free_req(i).valid := (if (i == 0) redirect.valid || commit_canDeq(i) else commit_canDeq(i)) && entries(ptr.value).rf_wen
-        bt_free_req(i).bits := entries(ptr.value).p_rd
 
         // FreeList
         fl_free_req(i).valid := (if (i == 0) redirect.valid || commit_canDeq(i) else commit_canDeq(i)) && entries(ptr.value).rd_need_rename

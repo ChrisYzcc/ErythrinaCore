@@ -36,6 +36,13 @@ class Memblock extends ErythModule {
             val stu_info = Output(new EXUInfo)
             val stu_cmt = ValidIO(new InstExInfo)
 
+            val ldu_rf_write = ValidIO(new Bundle {
+                val addr = UInt(PhyRegAddrBits.W)
+                val data = UInt(XLEN.W)
+            })
+
+            val ldu_bt_free_req = ValidIO(UInt(PhyRegAddrBits.W))
+
             val lq_except_infos = Vec(LoadQueSize, ValidIO(new ROBPtr))
         }
 
@@ -56,16 +63,20 @@ class Memblock extends ErythModule {
     val stu = Module(new STU)
     val storeQueue = Module(new StoreQueue)
     val loadQueue = Module(new LoadQueue)
+    val fwdUnit = Module(new StoreFwdUnit)
 
     /* ---------------- LDU ---------------- */
     ldu.io.req <> io.from_backend.ldu_req
     ldu.io.axi <> io.axi.ldu
-    ldu.io.sq_fwd <> storeQueue.io.sq_fwd
-    ldu.io.stu_fwd <> stu.io.stu_fwd
     ldu.io.ldu_cmt <> io.to_backend.ldu_cmt
     ldu.io.ldu_cmt <> loadQueue.io.ldu_cmt
     ldu.io.exu_info <> io.to_backend.ldu_info
     ldu.io.redirect <> io.from_backend.redirect
+    ldu.io.st_fwd_query <> fwdUnit.io.req
+    ldu.io.st_fwd_result <> fwdUnit.io.resp
+
+    ldu.io.bt_free_req <> io.to_backend.ldu_bt_free_req
+    ldu.io.rf_write <> io.to_backend.ldu_rf_write
 
     /* ---------------- STU ---------------- */
     stu.io.req <> io.from_backend.stu_req
@@ -73,6 +84,7 @@ class Memblock extends ErythModule {
     stu.io.cmt <> storeQueue.io.stu_cmt
     stu.io.exu_info <> io.to_backend.stu_info
     stu.io.redirect <> io.from_backend.redirect
+    stu.io.stu_fwd <> fwdUnit.io.stu_fwd
 
     /* ---------------- Store Queue ---------------- */
     storeQueue.io.alloc_req <> io.from_backend.sq_alloc_req
@@ -86,6 +98,7 @@ class Memblock extends ErythModule {
 
     storeQueue.io.axi <> io.axi.stu
     storeQueue.io.redirect <> io.from_backend.redirect
+    storeQueue.io.sq_fwd <> fwdUnit.io.sq_fwd
 
     /* ---------------- Load Queue ---------------- */
     loadQueue.io.alloc_req <> io.from_backend.lq_alloc_req

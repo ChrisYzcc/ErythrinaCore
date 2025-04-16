@@ -149,22 +149,18 @@ class DispatchModule extends ErythModule {
                 b.valid && b.bits.bypass_prd === instExBlk.p_rs1
         }
         val bp_src1_ready = bp_src1_ready_vec.reduce(_||_)
-        val bp_src1_ready_reg = RegNext(bp_src1_ready)
         val bp_src2_ready_vec = bypass.map{
             case b =>
                 b.valid && b.bits.bypass_prd === instExBlk.p_rs2
         }
         val bp_src2_ready = bp_src2_ready_vec.reduce(_||_)
-        val bp_src2_ready_reg = RegNext(bp_src2_ready)
         val bp_src1_data = VecInit(bypass.map(_.bits.bypass_data))(PriorityEncoder(bp_src1_ready_vec))
-        val bp_src1_data_reg = RegNext(bp_src1_data)
         val bp_src2_data = VecInit(bypass.map(_.bits.bypass_data))(PriorityEncoder(bp_src2_ready_vec))
-        val bp_src2_data_reg = RegNext(bp_src2_data)
 
-        val frm_bp_src1_ready = bp_src1_ready || bp_src1_ready_reg
-        val frm_bp_src2_ready = bp_src2_ready || bp_src2_ready_reg
-        val frm_bp_src1_data = Mux(bp_src1_ready, bp_src1_data, bp_src1_data_reg)
-        val frm_bp_src2_data = Mux(bp_src2_ready, bp_src2_data, bp_src2_data_reg)
+        val frm_bp_src1_ready = bp_src1_ready
+        val frm_bp_src2_ready = bp_src2_ready
+        val frm_bp_src1_data = bp_src1_data
+        val frm_bp_src2_data = bp_src2_data
 
         // Dispatch
         val issueBlk = WireInit(instExBlk)
