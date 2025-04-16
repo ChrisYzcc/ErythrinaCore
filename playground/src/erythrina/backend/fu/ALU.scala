@@ -20,7 +20,7 @@ class ALU extends ErythModule {
     val shamt = src2(4, 0)
     val src2in = src2 ^ Fill(XLEN, usesub)
 
-    val add_sub_res = (src1 +& src2) + usesub
+    val add_sub_res = (src1 +& src2in) + usesub
     val sltu_res = !add_sub_res(XLEN)
     val overflow  = (src1(XLEN-1) & src2in(XLEN-1) & ~add_sub_res(XLEN-1)) | (~src1(XLEN-1) & ~src2in(XLEN-1) & add_sub_res(XLEN-1))
     val slt_res   = overflow ^ add_sub_res(XLEN-1)

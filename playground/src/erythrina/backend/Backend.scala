@@ -23,8 +23,6 @@ class Backend extends ErythModule {
 
         val from_frontend = Vec(RenameWidth, Flipped(DecoupledIO(new InstExInfo)))
 
-        // TODO: redirect to frontend
-
         val to_memblock = new Bundle {
             val lq_alloc_req = Vec(DispatchWidth, DecoupledIO(new InstExInfo))
             val lq_alloc_rsp = Vec(DispatchWidth, Input(new LQPtr))

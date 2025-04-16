@@ -88,14 +88,17 @@ class FTQ extends ErythModule {
     val pred_req = io.pred_req
     val pred_rsp = io.pred_rsp
     
-    pred_req.valid := valids(predPtrExt.value) && fetched(predPtrExt.value) && !io.flush
+    pred_req.valid := valids(predPtrExt.value) && fetched(predPtrExt.value) && !io.flush && !predicted(predPtrExt.value)
     pred_req.bits := entries(predPtrExt.value)
+
+    when (pred_req.valid) {
+        predPtrExt := predPtrExt + 1.U
+    }
 
     when (pred_rsp.valid) {
         val pred_entry = pred_rsp.bits
         entries(pred_entry.ftqIdx) := pred_entry
         predicted(pred_entry.ftqIdx) := true.B
-        predPtrExt := predPtrExt + 1.U
     }
 
     // flush

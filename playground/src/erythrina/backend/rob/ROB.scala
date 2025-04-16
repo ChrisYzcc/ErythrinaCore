@@ -141,7 +141,7 @@ class ROB extends ErythModule {
     // handle exception and redirect
     val bottom_ptr = commitPtrExt(0)
     
-    redirect.valid := entries(bottom_ptr.value).state.finished && entries(bottom_ptr.value).exception.has_exception
+    redirect.valid := entries(bottom_ptr.value).state.finished && entries(bottom_ptr.value).exception.has_exception && bottom_ptr < allocPtrExt(0)
     redirect.bits.pc := entries(bottom_ptr.value).pc
     redirect.bits.npc := Mux1H(Seq(
         entries(bottom_ptr.value).exception.bpu_mispredict -> entries(bottom_ptr.value).real_target,
