@@ -70,7 +70,7 @@ EmuArgs parse_args(int argc, const char *argv[]) {
 }
 
 Emulator::Emulator(int argc, const char *argv[])
-    : dut_ptr(new DUT_TOP), cycles(0), state(EMU_RUN), inst_count(0), nocmt_cycles(0) {
+    : cycles(0), state(EMU_RUN), inst_count(0), nocmt_cycles(0) {
     signal(SIGINT, handle_interrupt);
     
     args = parse_args(argc, argv);
@@ -78,6 +78,12 @@ Emulator::Emulator(int argc, const char *argv[])
     pc_rstvec = PC_RSTVEC;
     
     printf("===================== EMU =====================\n");
+
+    // context
+    contx = new VerilatedContext;
+
+    // dut
+    dut_ptr = new DUT_TOP(contx);
 
     // wave
     if (args.dump_wave) {
@@ -144,6 +150,8 @@ Emulator::~Emulator() {
         trace_dump();
     }
 
+    dut_ptr->final();
+
     delete dut_ptr;
     printf("===============================================\n");
     printf("Total Cycles: %ld, Total Instrs: %ld\nIPC: %.2lf\n",
@@ -173,11 +181,21 @@ inline void Emulator::reset_ncycles(size_t cycles) {
 }
 
 inline void Emulator::single_cycle() {
+    if (contx->gotFinish()) {
+        trap(TRAP_SIM_STOP, 0);
+        return;
+    }
+
     dut_ptr->clock = 1;
     dut_ptr->eval();
 
     if (args.dump_wave) {
         tfp->dump(2 * cycles + 2 * args.reset_cycles);
+    }
+
+    if (contx->gotFinish()) {
+        trap(TRAP_SIM_STOP, 0);
+        return;
     }
 
     dut_ptr->clock = 0;
@@ -248,6 +266,11 @@ void Emulator::trap(TrapCode trap_code, uint32_t trap_info) {
             state = EMU_HIT_INTERRUPT;
             break;
         }
+        case TRAP_SIM_STOP: {
+            printf("[Info] Simulation stopped.\n");
+            state = EMU_HIT_BAD;
+            break;
+        }
         default: {
             printf("[Error] Unknown trap code: %d, info: %d\n", trap_code, trap_info);
             state = EMU_HIT_BAD;
@@ -288,6 +311,10 @@ void Emulator::get_npc_regfiles() {
 
 int Emulator::step() {
     single_cycle();
+
+    if (state != EMU_RUN) {
+        return 0;
+    }
 
     // update NPC state
     int cmt_cnt = 0;

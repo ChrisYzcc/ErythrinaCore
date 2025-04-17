@@ -32,6 +32,7 @@ typedef enum{
     TRAP_HALT_HIT_INSTR_BOUND,
     TRAP_HALT_HIT_CYCLE_BOUND,
     TRAP_SIG_INT,
+    TRAP_SIM_STOP,
     TRAP_UNKNOWN,
 }TrapCode;
 
@@ -56,6 +57,7 @@ class Emulator {
 private:
     DUT_TOP *dut_ptr;
     VerilatedFstC *tfp;
+    VerilatedContext *contx;
     EmuArgs args;
     EmuState state;
     uint64_t cycles;

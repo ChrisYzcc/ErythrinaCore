@@ -112,7 +112,7 @@ class RDU extends ErythModule {
     /* -------------- Stage 0 -------------- */
     val req = io.req
     s0_valid := req.map(_.valid).reduce(_||_) && !redirect.valid
-    s0_ready := !s0_valid || s1_ready || redirect.valid
+    s0_ready := s1_ready || redirect.valid
     for (i <- 0 until RenameWidth) {
         s0_task(i).valid := req(i).valid && !redirect.valid
         s0_task(i).bits := req(i).bits

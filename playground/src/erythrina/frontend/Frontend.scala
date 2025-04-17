@@ -37,7 +37,6 @@ class Frontend extends ErythModule {
     ftq.io.fetch_req    <> ifu.io.fetch_req
     ftq.io.fetch_rsp    <> ifu.io.fetch_rsp
     ftq.io.pred_req     <> bpu.io.ftq_pred_req
-    ftq.io.pred_rsp     <> bpu.io.ftq_pred_rsp
     ftq.io.enq_req      <> bpu.io.ftq_enq_req
     
     ftq.io.decode_req   <> idu.io.decode_req
