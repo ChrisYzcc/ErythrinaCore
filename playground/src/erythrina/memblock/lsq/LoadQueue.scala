@@ -97,10 +97,10 @@ class LoadQueue extends ErythModule {
     // Store-Load exception detect
     val lq_exc_infos = io.lq_except_infos
     val st_req = io.st_req
-    val st_addr = st_req.bits.src1 + st_req.bits.imm
+    val st_addr = Cat((st_req.bits.src1 + st_req.bits.imm)(XLEN - 1, 2), 0.U(2.W))
     when (st_req.valid) {
         for (i <- 0 until LoadQueSize) {
-            when (valids(i) && ldu_finished(i) && entries(i).addr === st_addr) {
+            when (valids(i) && ldu_finished(i) && entries(i).addr === st_addr && st_req.valid) {
                 has_st2ld(i) := true.B
             }
         }

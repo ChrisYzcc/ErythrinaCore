@@ -29,49 +29,48 @@ class BPU extends ErythModule {
         val redirect = Flipped(ValidIO(new Redirect))
 
         val ftq_enq_req = DecoupledIO(new InstFetchBlock)        // to FTQ, enq
-        
-        // from FTQ
-        val ftq_pred_req = Flipped(DecoupledIO(new InstFetchBlock))
     })
 
     val s0_valid = Wire(Bool())
     val s1_valid = RegInit(false.B)
-
-    val s0_task = Wire(new BPUTask)
+    val s1_ready = Wire(Bool())
+    
+    val s0_task = WireInit(0.U.asTypeOf(new BPUTask))
     val s1_task = RegInit(0.U.asTypeOf(new BPUTask))
 
-    val s0_ready = Wire(Bool())
-    val s1_ready = Wire(Bool())
+    val rst_task = Reg(new BPUTask)
+    val rst_task_issued = RegInit(false.B)
+    when (reset.asBool) {
+        rst_task.base_pc := RESETVEC.U
+        rst_task.is_redirect := true.B
+    }
 
-    /* ------------------- s0 ------------------- */
-    s0_valid := (io.ftq_pred_req.valid || io.redirect.valid) && !io.flush
-    assert(!(io.redirect.valid && io.flush), "BPU: redirect and flush should not be valid at the same time")
+    when (s0_valid && s1_ready) {
+        rst_task_issued := true.B
+    }
 
-    val static_task = Wire(new BPUTask)
-    static_task.fromInstFetchBlk(io.ftq_pred_req.bits)
-    
+    /* ----------------------------- s0 ----------------------------- */
+    s0_valid := (s1_valid || io.redirect.valid || !rst_task_issued) && !io.flush && !reset.asBool
+
     val redirect_task = Wire(new BPUTask)
     redirect_task.fromRedirect(io.redirect.bits)
 
-    s0_task := Mux(io.redirect.valid, 
-                    redirect_task,
-                    static_task
+    val static_task = Wire(new BPUTask)
+    static_task.fromInstFetchBlk(io.ftq_enq_req.bits)
+
+    s0_task := Mux(!rst_task_issued, rst_task,
+                    Mux(io.redirect.valid, redirect_task, static_task)
                 )
-    s0_ready := s1_ready && !io.redirect.valid || reset.asBool || io.flush
 
-    io.ftq_pred_req.ready := s0_ready
-
-    /* ------------------- s1 ------------------- */
+    /* ----------------------------- s1 ----------------------------- */
     when (s0_valid && s1_ready) {
-        s1_valid := s0_valid && !io.flush
+        s1_valid := s0_valid
         s1_task := s0_task
     }.elsewhen(!s0_valid && s1_ready) {
         s1_valid := false.B
-        s1_task := 0.U.asTypeOf(s1_task)
+        s1_task := 0.U.asTypeOf(new BPUTask)
     }
-    s1_ready := !s1_valid || io.flush || s1_valid && io.ftq_enq_req.ready || io.redirect.valid
 
-    // TODO: cross cacheline?
     val nxt_blk = WireInit(0.U.asTypeOf(new InstFetchBlock))
     for (i <- 0 until FetchWidth) {
         nxt_blk.instVec(i).valid := true.B
@@ -79,7 +78,8 @@ class BPU extends ErythModule {
         nxt_blk.instVec(i).bpu_taken := false.B
     }
 
-    io.ftq_enq_req.valid := s1_valid && !io.redirect.valid
-    io.ftq_enq_req.bits := nxt_blk;
+    s1_ready := !s1_valid || io.flush || s1_valid && io.ftq_enq_req.ready || io.redirect.valid
 
+    io.ftq_enq_req.valid := s1_valid && !io.redirect.valid
+    io.ftq_enq_req.bits := nxt_blk
 }

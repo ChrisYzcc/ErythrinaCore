@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 import erythrina.ErythModule
 import bus.axi4._
+import utils.CircularQueuePtr
 
 class IFU extends ErythModule {
     val io = IO(new Bundle {
@@ -19,58 +20,74 @@ class IFU extends ErythModule {
         }
     })
 
+    def FIFOSize = 8
+
+    class Ptr extends CircularQueuePtr[Ptr](FIFOSize) {
+    }
+
+    object Ptr {
+        def apply(f: Bool, v: UInt): Ptr = {
+            val ptr = Wire(new Ptr)
+            ptr.flag := f
+            ptr.value := v
+            ptr
+        }
+    }
+
+    // ptr
+    val enqPtrExt = RegInit(0.U.asTypeOf(new Ptr))
+    val deqPtrExt = RegInit(0.U.asTypeOf(new Ptr))
+    val ar_req_PtrExt = RegInit(0.U.asTypeOf(new Ptr))
+
+    val entries = RegInit(VecInit(Seq.fill(FIFOSize)(0.U.asTypeOf(new InstFetchBlock))))
+    val valids = RegInit(VecInit(Seq.fill(FIFOSize)(false.B)))
+    val ar_has_req_vec = RegInit(VecInit(Seq.fill(FIFOSize)(false.B)))
+
     val (fetch_req, fetch_rsp) = (io.fetch_req, io.fetch_rsp)
     val axi = io.axi
 
-    val axi_req_inflight_cnt = RegInit(0.U(2.W))
+    when (io.flush) {
+        enqPtrExt := 0.U.asTypeOf(new Ptr)
+        deqPtrExt := 0.U.asTypeOf(new Ptr)
+        ar_req_PtrExt := 0.U.asTypeOf(new Ptr)
+        valids := VecInit(Seq.fill(FIFOSize)(false.B))
+        entries := VecInit(Seq.fill(FIFOSize)(0.U.asTypeOf(new InstFetchBlock)))
+        ar_has_req_vec := VecInit(Seq.fill(FIFOSize)(false.B))
+    }
+
+    // enq
+    fetch_req.ready := enqPtrExt >= deqPtrExt && !io.flush
+    when (fetch_req.fire) {
+        entries(enqPtrExt.value) := fetch_req.bits
+        valids(enqPtrExt.value) := true.B
+        enqPtrExt := enqPtrExt + 1.U
+    }
+
+    axi.ar.valid := valids(ar_req_PtrExt.value) && !io.flush && !ar_has_req_vec(ar_req_PtrExt.value)
+    axi.ar.bits := 0.U.asTypeOf(new AXI4LiteBundleA)
+    axi.ar.bits.addr := entries(ar_req_PtrExt.value).instVec(0).pc
 
     when (axi.ar.fire) {
-        axi_req_inflight_cnt := axi_req_inflight_cnt + 1.U
-    }
-    when (axi.r.fire) {
-        axi_req_inflight_cnt := axi_req_inflight_cnt - 1.U
-    }
-
-    // TODO: use pipeline
-    val sIDLE::sREQ :: sRECV :: Nil = Enum(3)
-    val state = RegInit(sIDLE)
-    switch (state) {
-        is (sIDLE) {
-            when (fetch_req.fire && !io.flush) {
-                state := sREQ
-            }
+        when (ar_req_PtrExt < enqPtrExt) {
+            ar_req_PtrExt := ar_req_PtrExt + 1.U
         }
-        is (sREQ) {
-            when (io.flush) {
-                state := sIDLE
-            }.elsewhen(axi.ar.fire && !io.flush) {
-                state := sRECV
-            }
-        }
-        is (sRECV) {
-            when (axi.r.fire && axi_req_inflight_cnt === 1.U) {
-                state := sIDLE
-            }
-        }
+        ar_has_req_vec(ar_req_PtrExt.value) := true.B
     }
 
-    // AXI
-    val ar_blk = RegEnable(fetch_req.bits, 0.U.asTypeOf(new InstFetchBlock), fetch_req.fire && !io.flush)
+    // deq
+    axi.r.ready := true.B
 
-    axi.ar.valid        := state === sREQ && !io.flush
-    axi.ar.bits         := 0.U.asTypeOf(new AXI4LiteBundleA)
-    axi.ar.bits.addr    := Mux(ar_blk.instVec(0).valid, ar_blk.instVec(0).pc, ar_blk.instVec(1).pc)     // TODO: alignment?
-    
-    val r_blk = RegEnable(ar_blk, 0.U.asTypeOf(new InstFetchBlock), axi.ar.fire && !io.flush)
-    axi.r.ready     := state === sRECV
+    fetch_rsp.valid := valids(deqPtrExt.value) && !io.flush && ar_has_req_vec(deqPtrExt.value) && axi.r.fire
+    val rsp_blk = WireInit(entries(deqPtrExt.value))
+    rsp_blk.instVec(0).instr := axi.r.bits.data(XLEN - 1, 0)
+    rsp_blk.instVec(1).instr := axi.r.bits.data(2 * XLEN - 1, XLEN)
+    fetch_rsp.bits := rsp_blk
 
-    // response to FTQ
-    fetch_req.ready := state === sIDLE
-    
-    val rsp_block = WireInit(r_blk)
-    rsp_block.instVec(0).instr  := axi.r.bits.data(XLEN - 1, 0)
-    rsp_block.instVec(1).instr  := axi.r.bits.data(2 * XLEN - 1, XLEN)
-
-    fetch_rsp.valid := (axi.r.fire && axi_req_inflight_cnt === 1.U) && state === sRECV
-    fetch_rsp.bits  := rsp_block
+    when (fetch_rsp.valid) {
+        when (deqPtrExt < enqPtrExt) {
+            deqPtrExt := deqPtrExt + 1.U
+        }
+        valids(deqPtrExt.value) := false.B
+        ar_has_req_vec(deqPtrExt.value) := false.B
+    }
 }
