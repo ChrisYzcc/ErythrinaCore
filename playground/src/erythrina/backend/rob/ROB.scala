@@ -182,9 +182,9 @@ class ROB extends ErythModule {
             need_flush := true.B
         }
     }
+
     for (i <- 0 until LoadQueSize) {
-        val ptr = io.lq_except_infos(i)
-        when (ptr.valid) {
+        when (io.lq_except_infos(i).valid) {
             need_flush := true.B
         }
     }

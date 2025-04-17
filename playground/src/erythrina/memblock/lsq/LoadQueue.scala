@@ -7,6 +7,11 @@ import erythrina.backend.InstExInfo
 import erythrina.backend.rob.ROBPtr
 import erythrina.backend.Redirect
 
+class ReplayState extends Bundle {
+    val replay_s2l = Bool()
+    def need_replay = replay_s2l
+}
+
 class LoadQueue extends ErythModule {
     val io = IO(new Bundle {
         val alloc_req = Vec(DispatchWidth, Flipped(DecoupledIO(new InstExInfo)))
@@ -33,7 +38,6 @@ class LoadQueue extends ErythModule {
     val entries = RegInit(VecInit(Seq.fill(LoadQueSize)(0.U.asTypeOf(new InstExInfo))))
     val valids = RegInit(VecInit(Seq.fill(LoadQueSize)(false.B)))
     val ldu_finished = RegInit(VecInit(Seq.fill(LoadQueSize)(false.B)))
-    val has_st2ld = RegInit(VecInit(Seq.fill(LoadQueSize)(false.B)))
 
     // ptr
     val allocPtrExt = RegInit(VecInit((0 until DispatchWidth).map(_.U.asTypeOf(new LQPtr))))
@@ -57,7 +61,6 @@ class LoadQueue extends ErythModule {
             entries(ptr.value) := alloc_req(i).bits
             valids(ptr.value) := true.B
             ldu_finished(ptr.value) := false.B
-            has_st2ld(ptr.value) := false.B
         }
 
         alloc_rsp(i) := ptr
@@ -90,7 +93,6 @@ class LoadQueue extends ErythModule {
             entries(ptr.value) := 0.U.asTypeOf(new InstExInfo)
             valids(ptr.value) := false.B
             ldu_finished(ptr.value) := false.B
-            has_st2ld(ptr.value) := false.B
         }
     }
     
@@ -100,14 +102,14 @@ class LoadQueue extends ErythModule {
     val st_addr = Cat((st_req.bits.src1 + st_req.bits.imm)(XLEN - 1, 2), 0.U(2.W))
     when (st_req.valid) {
         for (i <- 0 until LoadQueSize) {
-            when (valids(i) && ldu_finished(i) && entries(i).addr === st_addr && st_req.valid) {
-                has_st2ld(i) := true.B
+            when (valids(i) && ldu_finished(i) && entries(i).addr === st_addr && st_req.valid && st_req.bits.robPtr < entries(i).robPtr) {
+                ldu_finished(i) := false.B
             }
         }
     }
 
     for (i <- 0 until LoadQueSize) {
-        lq_exc_infos(i).valid := has_st2ld(i) && valids(i) && ldu_finished(i)
+        lq_exc_infos(i).valid := valids(i) && ldu_finished(i) && entries(i).addr === st_addr && st_req.valid && st_req.bits.robPtr < entries(i).robPtr
         lq_exc_infos(i).bits := entries(i).robPtr
     }
 
@@ -123,7 +125,6 @@ class LoadQueue extends ErythModule {
             entries(i) := 0.U.asTypeOf(new InstExInfo)
             valids(i) := false.B
             ldu_finished(i) := false.B
-            has_st2ld(i) := false.B
         }
         deqPtrExt := 0.U.asTypeOf(new LQPtr)
         for (i <- 0 until DispatchWidth) {
