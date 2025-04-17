@@ -127,11 +127,11 @@ class ROB extends ErythModule {
         commit_canDeq(i)  := commit_needDeq(i) && ptr < allocPtrExt(0) && !prev_has_unfinished
 
         // FreeList
-        fl_free_req(i).valid := (if (i == 0) redirect.valid || commit_canDeq(i) else commit_canDeq(i)) && entries(ptr.value).rd_need_rename
+        fl_free_req(i).valid := (if (i == 0) redirect.valid && entries(commitPtrExt(i).value).exception.can_commit || commit_canDeq(i) else commit_canDeq(i)) && entries(ptr.value).rd_need_rename
         fl_free_req(i).bits := entries(ptr.value).origin_preg
 
         // RAT
-        rat_req(i).valid := (if (i == 0) redirect.valid || commit_canDeq(i) else commit_canDeq(i)) && entries(ptr.value).rd_need_rename
+        rat_req(i).valid := (if (i == 0) redirect.valid && entries(commitPtrExt(i).value).exception.can_commit || commit_canDeq(i) else commit_canDeq(i)) && entries(ptr.value).rd_need_rename
         rat_req(i).bits.a_reg := entries(ptr.value).a_rd
         rat_req(i).bits.p_reg := entries(ptr.value).p_rd
     }
@@ -193,7 +193,7 @@ class ROB extends ErythModule {
 
     // difftest
     for (i <- 0 until CommitWidth) {
-        io.difftest(i).valid := (if (i == 0) redirect.valid || commit_canDeq(i) else commit_canDeq(i))
+        io.difftest(i).valid := (if (i == 0) redirect.valid && entries(commitPtrExt(i).value).exception.can_commit || commit_canDeq(i) else commit_canDeq(i))
         io.difftest(i).bits.pc := entries(commitPtrExt(i).value).pc
         io.difftest(i).bits.inst := entries(commitPtrExt(i).value).instr
         io.difftest(i).bits.rf_wen := entries(commitPtrExt(i).value).rf_wen
@@ -208,7 +208,8 @@ class ROB extends ErythModule {
     // halter
     val halter = Module(new Halter)
     val halter_ebreak = entries(bottom_ptr.value).exception.csr_ebreak && entries(bottom_ptr.value).state.finished
+    val halter_unknown_addr = entries(bottom_ptr.value).exception.unknown_addr && entries(bottom_ptr.value).state.finished
 
-    halter.io.trigger := halter_ebreak
-    halter.io.reason := HaltOp.ebreak
+    halter.io.trigger := halter_ebreak || halter_unknown_addr
+    halter.io.reason := Mux(halter_ebreak, HaltOp.ebreak, HaltOp.unknown)
 }

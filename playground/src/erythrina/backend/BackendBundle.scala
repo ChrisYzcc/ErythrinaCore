@@ -16,12 +16,18 @@ class InstrState extends Bundle {
 
 class RobException extends ErythBundle {
     val store2load = Bool() // store-load exception
+    val unknown_addr = Bool()
+
     val bpu_mispredict = Bool() // branch mispredict
 
     val csr_ebreak = Bool()
 
+    def can_commit = {
+        bpu_mispredict || csr_ebreak
+    }
+
     def has_exception = {
-        store2load || bpu_mispredict || csr_ebreak
+        store2load || bpu_mispredict || csr_ebreak || unknown_addr
     }
 }
 

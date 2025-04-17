@@ -34,4 +34,6 @@ trait HasErythCoreParams {
     val ROBSize = 64
     val LoadQueSize = 8
     val StoreQueSize = 8
+
+    val addr_space = (0x80000000L, 0xFFFFFFFFL)
 }

@@ -5,6 +5,7 @@ import chisel3.util._
 
 object HaltOp{
     val ebreak = 0.U(32.W)
+    val unknown = 1.U(32.W)
 }
 
 class Halter extends BlackBox with HasBlackBoxInline {

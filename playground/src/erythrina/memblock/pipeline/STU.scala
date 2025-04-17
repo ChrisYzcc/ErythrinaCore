@@ -50,8 +50,10 @@ class STU extends ErythModule {
         STUop.sw    -> ("b1111".U)
     ))
 
+    val st_addr_err = !(st_addr >= addr_space._1.U && st_addr <= addr_space._2.U)
+
     // Forwarding
-    st_fwd(0).valid := s0_valid
+    st_fwd(0).valid := s0_valid && !st_addr_err
     st_fwd(0).bits.addr := Cat(st_addr(31, 2), 0.U(2.W))
     st_fwd(0).bits.data := st_data
     st_fwd(0).bits.mask := st_mask
@@ -62,6 +64,7 @@ class STU extends ErythModule {
     val s1_st_addr = RegNext(st_addr)
     val s1_st_data = RegNext(st_data)
     val s1_st_mask = RegNext(st_mask)
+    val s1_st_addr_err = RegNext(st_addr_err)
 
     // cmt
     val cmt_instBlk = WireInit(RegNext(req.bits))
@@ -69,13 +72,14 @@ class STU extends ErythModule {
     cmt_instBlk.res := s1_st_data
     cmt_instBlk.addr := Cat(s1_st_addr(31, 2), 0.U(2.W))
     cmt_instBlk.mask := s1_st_mask
+    cmt_instBlk.exception.unknown_addr := s1_st_addr_err
     cmt_instBlk.state.finished := true.B
 
     cmt.valid := s1_valid
     cmt.bits := cmt_instBlk
 
     // Forwarding
-    st_fwd(1).valid := s1_valid
+    st_fwd(1).valid := s1_valid && !s1_st_addr_err
     st_fwd(1).bits.addr := Cat(s1_st_addr(31, 2), 0.U(2.W))
     st_fwd(1).bits.data := s1_st_data
     st_fwd(1).bits.mask := s1_st_mask

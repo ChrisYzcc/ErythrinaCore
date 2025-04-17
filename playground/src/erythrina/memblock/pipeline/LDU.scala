@@ -47,6 +47,8 @@ class LDU extends ErythModule {
         axi_req_inflight_cnt := axi_req_inflight_cnt - 1.U
     }
 
+    val r_has_err = Wire(Bool())
+
     val sIDLE :: sREQ :: sRECV :: Nil = Enum(3)
     val state = RegInit(sIDLE)
     switch (state) {
@@ -63,7 +65,7 @@ class LDU extends ErythModule {
             }
         }
         is (sRECV) {
-            when (axi.r.fire && axi_req_inflight_cnt === 1.U) {
+            when (axi.r.fire && axi_req_inflight_cnt === 1.U || r_has_err) {
                 state := sIDLE
             }
         }
@@ -75,12 +77,16 @@ class LDU extends ErythModule {
     val req_task = RegEnable(req.bits, 0.U.asTypeOf(new InstExInfo), req.fire)
     val addr = (req_task.src1 + req_task.src2)
 
-    axi.ar.valid := state === sREQ && !redirect.valid
+    val req_addr = Cat(addr(XLEN - 1, 2), 0.U(2.W))
+    val addr_err = !(req_addr >= addr_space._1.asUInt && req_addr <= addr_space._2.asUInt)
+
+    axi.ar.valid := state === sREQ && !redirect.valid && !addr_err
     axi.ar.bits := 0.U.asTypeOf(new AXI4LiteBundleA)
-    axi.ar.bits.addr := Cat(addr(XLEN - 1, 2), 0.U(2.W))
+    axi.ar.bits.addr := req_addr
 
     val to_recv_task = WireInit(req_task)
     to_recv_task.addr := addr
+    to_recv_task.exception.unknown_addr := addr_err
 
     // sRECV
     val recv_task = RegEnable(to_recv_task, 0.U.asTypeOf(new InstExInfo), axi.ar.fire)
@@ -146,6 +152,8 @@ class LDU extends ErythModule {
     ))
     fwd_query.bits.mask := mask
 
+    r_has_err := recv_task.exception.unknown_addr
+
     // Cmt
     val cmt_instBlk = WireInit(recv_task)
     cmt_instBlk.res := res
@@ -153,7 +161,7 @@ class LDU extends ErythModule {
     cmt_instBlk.addr := Cat(recv_addr(XLEN - 1, 2), 0.U(2.W))
     cmt_instBlk.state.finished := true.B
 
-    io.ldu_cmt.valid := (axi.r.fire && axi_req_inflight_cnt === 1.U) && !redirect.valid
+    io.ldu_cmt.valid := (axi.r.fire && axi_req_inflight_cnt === 1.U || r_has_err) && !redirect.valid
     io.ldu_cmt.bits := cmt_instBlk
     
     io.rf_write.valid := io.ldu_cmt.valid && io.ldu_cmt.bits.rf_wen
