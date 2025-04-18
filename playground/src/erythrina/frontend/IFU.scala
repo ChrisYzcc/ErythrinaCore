@@ -5,6 +5,7 @@ import chisel3.util._
 import erythrina.ErythModule
 import bus.axi4._
 import utils.CircularQueuePtr
+import utils.PerfCount
 
 class IFU extends ErythModule {
     val io = IO(new Bundle {
@@ -90,4 +91,7 @@ class IFU extends ErythModule {
         valids(deqPtrExt.value) := false.B
         ar_has_req_vec(deqPtrExt.value) := false.B
     }
+
+    // Perf
+    PerfCount("IFU_AR_WAIT", axi.ar.valid && !axi.ar.ready)
 }

@@ -6,6 +6,7 @@ import erythrina._
 import bus.axi4._
 import device._
 import difftest.DifftestBox
+import utils.PerfBox
 
 class SimTop extends Module {
     Config.RESETVEC = 0x80000000L
@@ -20,4 +21,8 @@ class SimTop extends Module {
     
     val difftest = Module(new DifftestBox)
     difftest.io.diff_infos <> core.io.difftest
+
+    if (Config.enablePerf) {
+        val perfBox = Module(new PerfBox)
+    }
 }

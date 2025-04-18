@@ -9,6 +9,7 @@ import erythrina.frontend.FuType
 import erythrina.backend.Redirect
 import utils.LookupTree
 import utils.{Halter, HaltOp}
+import utils.PerfDumpTrigger
 
 class ROB extends ErythModule {
     val io = IO(new Bundle {
@@ -146,7 +147,8 @@ class ROB extends ErythModule {
     redirect.bits.npc := Mux1H(Seq(
         entries(bottom_ptr.value).exception.bpu_mispredict -> entries(bottom_ptr.value).real_target,
         entries(bottom_ptr.value).exception.csr_ebreak -> 0.U,
-        entries(bottom_ptr.value).exception.store2load -> entries(bottom_ptr.value).pc
+        entries(bottom_ptr.value).exception.store2load -> entries(bottom_ptr.value).pc,
+        entries(bottom_ptr.value).exception.unknown_addr -> 0.U,
     ))
 
     when (redirect.valid) {
@@ -210,6 +212,8 @@ class ROB extends ErythModule {
     val halter_ebreak = entries(bottom_ptr.value).exception.csr_ebreak && entries(bottom_ptr.value).state.finished
     val halter_unknown_addr = entries(bottom_ptr.value).exception.unknown_addr && entries(bottom_ptr.value).state.finished
 
-    halter.io.trigger := halter_ebreak || halter_unknown_addr
-    halter.io.reason := Mux(halter_ebreak, HaltOp.ebreak, HaltOp.unknown)
+    halter.io.trigger := RegNext(halter_ebreak || halter_unknown_addr)
+    halter.io.reason := RegNext(Mux(halter_ebreak, HaltOp.ebreak, HaltOp.unknown))
+
+    PerfDumpTrigger("ebreak", halter_ebreak)
 }
