@@ -1,4 +1,4 @@
-ErythrinaCore: A Dual-Issued Out-of-Order Machine
+ErythrinaCore: A Dual-Issue Out-of-Order Machine
 =======================
 
 Contents at a glance:
