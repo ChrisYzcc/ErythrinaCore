@@ -11,6 +11,7 @@ import erythrina.frontend.FuType
 import erythrina.memblock.StoreFwdBundle
 import erythrina.backend.rob.ROBPtr
 import erythrina.backend.Redirect
+import erythrina.AddrSpace
 
 class LDU extends ErythModule {
     val io = IO(new Bundle {
@@ -78,7 +79,7 @@ class LDU extends ErythModule {
     val addr = (req_task.src1 + req_task.src2)
 
     val req_addr = Cat(addr(XLEN - 1, 2), 0.U(2.W))
-    val addr_err = !(req_addr >= addr_space._1.asUInt && req_addr <= addr_space._2.asUInt)
+    val addr_err = !AddrSpace.in_addr_space(req_addr)
 
     axi.ar.valid := state === sREQ && !redirect.valid && !addr_err
     axi.ar.bits := 0.U.asTypeOf(new AXI4LiteBundleA)

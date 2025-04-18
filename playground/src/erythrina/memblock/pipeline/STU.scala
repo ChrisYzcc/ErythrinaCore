@@ -9,6 +9,7 @@ import erythrina.frontend.FuType
 import utils.LookupTree
 import erythrina.memblock.StoreFwdBundle
 import erythrina.backend.Redirect
+import erythrina.AddrSpace
 
 class STU extends ErythModule {
     val io = IO(new Bundle {
@@ -50,7 +51,7 @@ class STU extends ErythModule {
         STUop.sw    -> ("b1111".U)
     ))
 
-    val st_addr_err = !(st_addr >= addr_space._1.U && st_addr <= addr_space._2.U)
+    val st_addr_err = !AddrSpace.in_addr_space(st_addr)
 
     // Forwarding
     st_fwd(0).valid := s0_valid && !st_addr_err

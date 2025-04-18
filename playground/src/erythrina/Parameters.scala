@@ -1,7 +1,23 @@
 package erythrina
 
 import top.Config
+import chisel3._
 import chisel3.util._
+
+object AddrSpace {
+    val addr_space = List(
+        (0x80000000L, 0x88000000L),
+        (0xa0000000L, 0xa0001000L)
+    )
+
+    def in_addr_space(addr: UInt): Bool = {
+        val in_space = Wire(Vec(addr_space.length, Bool()))
+        for (i <- addr_space.indices) {
+            in_space(i) := addr >= addr_space(i)._1.U && addr < addr_space(i)._2.U
+        }
+        in_space.reduce(_ || _)
+    }
+}
 
 trait HasErythCoreParams {
     val XLEN = Config.XLEN
@@ -34,6 +50,4 @@ trait HasErythCoreParams {
     val ROBSize = 64
     val LoadQueSize = 8
     val StoreQueSize = 8
-
-    val addr_space = (0x80000000L, 0xFFFFFFFFL)
 }
