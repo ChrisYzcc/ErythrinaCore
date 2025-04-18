@@ -19,12 +19,13 @@ class RobException extends ErythBundle {
     val store2load = Bool() // store-load exception
 
     val bpu_mispredict = Bool() // branch mispredict
+    val ret = Bool()
 
     val exceptions = new Exceptions
 
 
     def can_commit = {
-        bpu_mispredict
+        bpu_mispredict || ret
     }
 
     def has_exception = {

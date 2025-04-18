@@ -111,8 +111,14 @@ class Decoder extends ErythModule with InstrType{
 
     // TODO: CSR
     val is_csr = fuType === FuType.csr
-    val csr_src1 = pc
-    val csr_src2 = imm
+
+    val csr_src1_ready = fuOpType =/= CSRop.jmp
+    val csr_src2_ready = true.B
+    val csr_rf_wen = fuOpType =/= CSRop.jmp && rd =/= 0.U
+
+    val csr_rs1_need_rename = fuOpType =/= CSRop.jmp
+    val csr_rs2_need_rename = false.B
+    val csr_rd_need_rename = fuOpType =/= CSRop.jmp && rd =/= 0.U
 
 	val rsp_instExInfo = WireInit(0.U.asTypeOf(new InstExInfo))
 	rsp_instExInfo.fromInstInfo(in)
@@ -120,19 +126,19 @@ class Decoder extends ErythModule with InstrType{
 	rsp_instExInfo.a_rs1 := rs1
 	rsp_instExInfo.a_rs2 := rs2
 	rsp_instExInfo.a_rd  := rd
-    rsp_instExInfo.rs1_need_rename  := src1_type === SrcType.reg && rs1 =/= 0.U && !is_csr
-    rsp_instExInfo.rs2_need_rename  := src2_type === SrcType.reg && rs2 =/= 0.U && !is_csr
-    rsp_instExInfo.rd_need_rename   := rd =/= 0.U && rf_wen && !is_csr
+    rsp_instExInfo.rs1_need_rename  := Mux(is_csr, csr_rs1_need_rename, src1_type === SrcType.reg && rs1 =/= 0.U)
+    rsp_instExInfo.rs2_need_rename  := Mux(is_csr, csr_rs2_need_rename, src2_type === SrcType.reg && rs2 =/= 0.U)
+    rsp_instExInfo.rd_need_rename   := Mux(is_csr, csr_rd_need_rename, rd =/= 0.U && rf_wen)
 
 	rsp_instExInfo.fuType := fuType
 	rsp_instExInfo.fuOpType := fuOpType
 
     rsp_instExInfo.imm  := imm
-    rsp_instExInfo.src1 := Mux(is_csr, csr_src1, src1)
-    rsp_instExInfo.src2 := Mux(is_csr, csr_src2, src2)
-    rsp_instExInfo.src1_ready := src1_type =/= SrcType.reg || rs1 === 0.U || is_csr
-    rsp_instExInfo.src2_ready := src2_type =/= SrcType.reg || rs2 === 0.U || is_csr
-    rsp_instExInfo.rf_wen := rf_wen && !is_csr
+    rsp_instExInfo.src1 := src1
+    rsp_instExInfo.src2 := src2
+    rsp_instExInfo.src1_ready := Mux(is_csr, csr_src1_ready, src1_type =/= SrcType.reg || rs1 === 0.U)
+    rsp_instExInfo.src2_ready := Mux(is_csr, csr_src2_ready, src2_type =/= SrcType.reg || rs2 === 0.U)
+    rsp_instExInfo.rf_wen := Mux(is_csr, csr_rf_wen, rf_wen)
 
     rsp_instExInfo.speculative := !is_csr
 

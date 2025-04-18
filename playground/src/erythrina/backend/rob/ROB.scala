@@ -145,7 +145,7 @@ class ROB extends ErythModule {
     redirect.valid := entries(bottom_ptr.value).state.finished && entries(bottom_ptr.value).exception.has_exception && bottom_ptr < allocPtrExt(0)
     redirect.bits.pc := entries(bottom_ptr.value).pc
     redirect.bits.npc := Mux1H(Seq(
-        entries(bottom_ptr.value).exception.bpu_mispredict -> entries(bottom_ptr.value).real_target,
+        (entries(bottom_ptr.value).exception.bpu_mispredict || entries(bottom_ptr.value).exception.ret) -> entries(bottom_ptr.value).real_target,
         entries(bottom_ptr.value).exception.store2load -> entries(bottom_ptr.value).pc,
         entries(bottom_ptr.value).exception.exceptions.has_exception -> 0.U,
     ))
