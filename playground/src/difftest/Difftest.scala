@@ -20,7 +20,7 @@ class DifftestInfos extends DifftestBundle {
     val rf_waddr = UInt(ArchRegAddrBits.W)
     val rf_wdata = UInt(XLEN.W)
 
-    val mem_wen = Bool()
+    val mem_en = Bool()
     val mem_addr = UInt(XLEN.W)
     val mem_data = UInt(XLEN.W)
     val mem_mask = UInt(MASKLEN.W)
@@ -47,7 +47,7 @@ class DifftestBox extends DifftestModule {
                 |   input   diff_infos_${i}_bits_rf_wen,
                 |   input   [${ArchRegAddrBits-1}:0] diff_infos_${i}_bits_rf_waddr,
                 |   input   [${XLEN-1}:0] diff_infos_${i}_bits_rf_wdata,
-                |   input   diff_infos_${i}_bits_mem_wen,
+                |   input   diff_infos_${i}_bits_mem_en,
                 |   input   [${XLEN-1}:0] diff_infos_${i}_bits_mem_addr,
                 |   input   [${XLEN-1}:0] diff_infos_${i}_bits_mem_data,
                 |   input   [${MASKLEN-1}:0] diff_infos_${i}_bits_mem_mask
@@ -61,7 +61,7 @@ class DifftestBox extends DifftestModule {
         |   logic rf_wens [${CommitWidth-1}:0];
         |   logic [${ArchRegAddrBits-1}:0] rf_waddrs [${CommitWidth-1}:0];
         |   logic [${XLEN-1}:0] rf_wdatas [${CommitWidth-1}:0];
-        |   logic mem_wens [${CommitWidth-1}:0];
+        |   logic mem_ens [${CommitWidth-1}:0];
         |   logic [${XLEN-1}:0] mem_addrs [${CommitWidth-1}:0];
         |   logic [${XLEN-1}:0] mem_datas [${CommitWidth-1}:0];
         |   logic [${MASKLEN-1}:0] mem_masks [${CommitWidth-1}:0];
@@ -75,7 +75,7 @@ class DifftestBox extends DifftestModule {
             |   assign rf_wens[${i}] = diff_infos_${i}_bits_rf_wen;
             |   assign rf_waddrs[${i}] = diff_infos_${i}_bits_rf_waddr;
             |   assign rf_wdatas[${i}] = diff_infos_${i}_bits_rf_wdata;
-            |   assign mem_wens[${i}] = diff_infos_${i}_bits_mem_wen;
+            |   assign mem_ens[${i}] = diff_infos_${i}_bits_mem_en;
             |   assign mem_addrs[${i}] = diff_infos_${i}_bits_mem_addr;
             |   assign mem_datas[${i}] = diff_infos_${i}_bits_mem_data;
             |   assign mem_masks[${i}] = diff_infos_${i}_bits_mem_mask;
@@ -104,7 +104,7 @@ class DifftestBox extends DifftestModule {
         |       output logic rf_wen,
         |       output logic [${ArchRegAddrBits-1}:0] rf_waddr,
         |       output logic [${XLEN-1}:0] rf_wdata,
-        |       output logic mem_wen,
+        |       output logic mem_en,
         |       output logic [${XLEN-1}:0] mem_addr,
         |       output logic [${XLEN-1}:0] mem_data,
         |       output logic [${MASKLEN-1}:0] mem_mask
@@ -115,7 +115,7 @@ class DifftestBox extends DifftestModule {
         |       rf_wen = rf_wens[diff_idx];
         |       rf_waddr = rf_waddrs[diff_idx];
         |       rf_wdata = rf_wdatas[diff_idx];
-        |       mem_wen = mem_wens[diff_idx];
+        |       mem_en = mem_ens[diff_idx];
         |       mem_addr = mem_addrs[diff_idx];
         |       mem_data = mem_datas[diff_idx];
         |       mem_mask = mem_masks[diff_idx];

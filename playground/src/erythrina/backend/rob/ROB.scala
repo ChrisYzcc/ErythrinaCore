@@ -200,7 +200,7 @@ class ROB extends ErythModule {
         io.difftest(i).bits.rf_wen := entries(commitPtrExt(i).value).rf_wen
         io.difftest(i).bits.rf_waddr := entries(commitPtrExt(i).value).a_rd
         io.difftest(i).bits.rf_wdata := entries(commitPtrExt(i).value).res
-        io.difftest(i).bits.mem_wen := entries(commitPtrExt(i).value).fuType === FuType.stu
+        io.difftest(i).bits.mem_en := entries(commitPtrExt(i).value).fuType === FuType.stu || entries(commitPtrExt(i).value).fuType === FuType.ldu
         io.difftest(i).bits.mem_addr := entries(commitPtrExt(i).value).addr
         io.difftest(i).bits.mem_data := entries(commitPtrExt(i).value).res
         io.difftest(i).bits.mem_mask := entries(commitPtrExt(i).value).mask

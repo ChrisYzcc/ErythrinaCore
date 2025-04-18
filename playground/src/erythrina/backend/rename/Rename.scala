@@ -34,6 +34,9 @@ class RenameModule extends ErythModule {
 
         // Redirect
         val redirect = Flipped(ValidIO(new Redirect))
+
+        // Dispatch Ready
+        val dispatch_ready = Input(Bool())
     })
 
     val (rs1, rs2, rd) = (io.rs1, io.rs2, io.rd)
@@ -43,6 +46,7 @@ class RenameModule extends ErythModule {
     val (fl_req, fl_rsp) = (io.fl_req, io.fl_rsp)
     val bt_alloc = io.bt_alloc
     val redirect = io.redirect
+    val dispatch_ready = io.dispatch_ready
 
     // Req to RAT
     for (i <- 0 until RenameWidth) {
@@ -54,7 +58,7 @@ class RenameModule extends ErythModule {
     // Req to FreeList
     val new_dst = Wire(Vec(RenameWidth, UInt(PhyRegAddrBits.W)))
     for (i <- 0 until RenameWidth) {
-        fl_req(i).valid := rename_req(i).valid && rename_req(i).bits.rd_need_rename && !redirect.valid
+        fl_req(i).valid := rename_req(i).valid && rename_req(i).bits.rd_need_rename && !redirect.valid && dispatch_ready
         new_dst(i) := fl_rsp(i)
     }
 
@@ -94,7 +98,7 @@ class RenameModule extends ErythModule {
             }.reduce(_ || _)
         }
 
-        wr_phy(i).valid := fl_req(i).fire && !hasWAW(i) && !redirect.valid
+        wr_phy(i).valid := fl_req(i).fire && !hasWAW(i) && !redirect.valid && dispatch_ready
         wr_phy(i).bits.a_reg := rd(i)
         wr_phy(i).bits.p_reg := new_dst(i)
     }
@@ -143,7 +147,7 @@ class RenameModule extends ErythModule {
         rename_rsp(i).valid := (!fl_req(i).valid || fl_req(i).ready) && !redirect.valid
         rename_rsp(i).bits := rsp_instExInfo
 
-        bt_alloc(i).valid := rename_req(i).valid && rename_req(i).bits.rf_wen && !redirect.valid
+        bt_alloc(i).valid := rename_req(i).valid && rename_req(i).bits.rf_wen && !redirect.valid && dispatch_ready
         bt_alloc(i).bits := new_dst(i)
     }
 }

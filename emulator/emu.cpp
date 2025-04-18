@@ -1,6 +1,7 @@
 #include "emu.h"
 #include "VSimTop__Dpi.h"
 #include "common.h"
+#include "device.h"
 #include "difftest.h"
 #include "isa.h"
 #include "trace.h"
@@ -84,6 +85,9 @@ Emulator::Emulator(int argc, const char *argv[])
 
     // dut
     dut_ptr = new DUT_TOP(contx);
+
+    // device
+    init_device();
 
     // wave
     if (args.dump_wave) {
@@ -223,7 +227,7 @@ void Emulator::trap(TrapCode trap_code, uint32_t trap_info) {
         case TRAP_HALT_EBREAK: {
             printf("[Info] Hit ebreak instruction.\n");
             get_npc_regfiles();
-            if (npc_arch_state.gpr[get_regidx("a0")] == 0) {
+            if (npc_arch_real_state.gpr[get_regidx("a0")] == 0) {
                 state = EMU_HIT_GOOD;
             }
             else {
@@ -305,7 +309,7 @@ void Emulator::get_npc_regfiles() {
 
     // Generate NPC state
     for (int i = 0; i < ARCH_REG_NUM; i++) {
-        npc_arch_state.gpr[i] = npc_uarch_state.phy_reg[npc_uarch_state.rat[i]];
+        npc_arch_real_state.gpr[i] = npc_uarch_state.phy_reg[npc_uarch_state.rat[i]];
     }
 }
 
@@ -316,31 +320,40 @@ int Emulator::step() {
         return 0;
     }
 
-    // update NPC state
+    // update NPC Sim state
     int cmt_cnt = 0;
     diff_infos infos;
     for (int i = 0; i < 4; i++){
         if (get_diff_infos(&infos, i)) {
             cmt_cnt ++;
-            npc_arch_state.pc = infos.pc;
+            npc_arch_sim_state.pc = infos.pc;
+            npc_arch_real_state.pc = infos.pc;
             if (infos.rf_wen) {
-                npc_arch_state.gpr[infos.rf_waddr] = infos.rf_wdata;
+                npc_arch_sim_state.gpr[infos.rf_waddr] = infos.rf_wdata;
             }
 
             if (args.dump_trace) {
                 trace(infos.pc, infos.instr);
+            }
+
+            if (args.enable_diff) {
+                if (infos.mem_en && is_device(infos.mem_addr) != -1) {
+                    ref_difftest_regcpy(&npc_arch_sim_state, DIFFTEST_TO_REF);
+                } else {
+                    diff_step();
+                    CPUState ref_arch_state;
+                    ref_difftest_regcpy(&ref_arch_state, DIFFTEST_TO_DUT);
+                    diff_states(&ref_arch_state, 1);
+                }
             }
         }
     }
 
     if (args.enable_diff && cmt_cnt > 0) {
         get_npc_regfiles();
-        for (int i = 0; i < cmt_cnt; i++) {
-            diff_step();
-        }
         CPUState ref_arch_state;
         ref_difftest_regcpy(&ref_arch_state, DIFFTEST_TO_DUT);
-        diff_states(&ref_arch_state);
+        diff_states(&ref_arch_state, 0);
     }
 
     if (cmt_cnt == 0) {
@@ -357,24 +370,42 @@ int Emulator::step() {
     return cmt_cnt;
 }
 
-void Emulator::diff_states(CPUState *ref) {
+void Emulator::diff_states(CPUState *ref, bool is_sim_arch) {
+    CPUState *dut_state_ptr = nullptr;
+    if (is_sim_arch) {
+        dut_state_ptr = &npc_arch_sim_state;
+    }
+    else {
+        dut_state_ptr = &npc_arch_real_state;
+    }
+
+    const char *sim_prefix = "SimArch";
+    const char *real_prefix = "RealArch";
+    const char *prefix;
+    if (is_sim_arch) {
+        prefix = sim_prefix;
+    }
+    else {
+        prefix = real_prefix;
+    }
+
     bool has_err = 0;
     // check regs
     for (int i = 0; i < ARCH_REG_NUM; i++) {
-        if (npc_arch_state.gpr[i] != ref->gpr[i]) {
-            printf("[Error] Reg %s: NPC: 0x%08x, REF: 0x%08x\n", get_regname(i), npc_arch_state.gpr[i], ref->gpr[i]);
+        if (dut_state_ptr->gpr[i] != ref->gpr[i]) {
+            printf("[Error] %s Reg %s: NPC: 0x%08x, REF: 0x%08x\n", prefix, get_regname(i), dut_state_ptr->gpr[i], ref->gpr[i]);
             has_err = 1;
         }
     }
 
     // check pc
-    if (npc_arch_state.pc != ref->pc) {
-        printf("[Error] PC: NPC: 0x%08x, REF: 0x%08x\n", npc_arch_state.pc, ref->pc);
+    if (dut_state_ptr->pc != ref->pc) {
+        printf("[Error] %s PC: NPC: 0x%08x, REF: 0x%08x\n", prefix, dut_state_ptr->pc, ref->pc);
         has_err = 1;
     }
     else {
         if (has_err) {
-            printf("[AT   ] PC: NPC: 0x%08x, REF: 0x%08x\n", npc_arch_state.pc, ref->pc);
+            printf("[AT   ] %s PC: NPC: 0x%08x, REF: 0x%08x\n", prefix, dut_state_ptr->pc, ref->pc);
         }
     }
 

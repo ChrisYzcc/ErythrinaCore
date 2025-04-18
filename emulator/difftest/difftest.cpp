@@ -43,7 +43,7 @@ void diff_step() {
 
 // get commit diff_info from NPC
 int get_diff_infos(diff_infos *infos, int req_idx) {
-    svLogic valid, rf_wen, mem_wen;
+    svLogic valid, rf_wen, mem_en;
     svLogicVecVal pc, inst, rf_waddr, rf_wdata, mem_addr, mem_data, mem_mask, idx;
     idx.aval = req_idx;
 
@@ -55,7 +55,7 @@ int get_diff_infos(diff_infos *infos, int req_idx) {
 
     get_diff_info(
         &valid, &pc, &inst, &rf_wen, &rf_waddr, &rf_wdata,
-        &mem_wen, &mem_addr, &mem_data, &mem_mask
+        &mem_en, &mem_addr, &mem_data, &mem_mask
     );
 
     infos->pc = pc.aval;
@@ -65,7 +65,7 @@ int get_diff_infos(diff_infos *infos, int req_idx) {
     infos->rf_waddr = rf_waddr.aval;
     infos->rf_wdata = rf_wdata.aval;
 
-    infos->mem_wen = mem_wen;
+    infos->mem_en = mem_en;
     infos->mem_addr = mem_addr.aval;
     infos->mem_data = mem_data.aval;
     infos->mem_mask = mem_mask.aval;

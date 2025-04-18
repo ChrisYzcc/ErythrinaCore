@@ -141,6 +141,7 @@ class RDU extends ErythModule {
     renameModule.io.fl_req <> io.fl_req
     renameModule.io.fl_rsp <> io.fl_rsp
     renameModule.io.bt_alloc <> io.bt_alloc
+    renameModule.io.dispatch_ready := s2_ready || redirect.valid
 
     for (i <- 0 until RenameWidth) {
         renameModule.io.rename_req(i).valid := s1_valid && s1_task(i).valid && !redirect.valid

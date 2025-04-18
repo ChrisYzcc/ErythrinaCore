@@ -65,7 +65,8 @@ private:
 
     uint64_t nocmt_cycles;
 
-    CPUState npc_arch_state;
+    CPUState npc_arch_sim_state;    // deduct from commit info
+    CPUState npc_arch_real_state;   // read npc regfiles
     MicroArchState npc_uarch_state;
 
     inline void reset_ncycles(size_t cycles);
@@ -81,7 +82,7 @@ public:
 
     void trap(TrapCode trap_code, uint32_t trap_info);
 
-    void diff_states(CPUState *ref);
+    void diff_states(CPUState *ref, bool is_sim_arch);
 
     void get_npc_regfiles();
 

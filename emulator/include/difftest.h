@@ -13,7 +13,7 @@ struct diff_infos {
     uint32_t rf_waddr;
     uint32_t rf_wdata;
 
-    bool mem_wen;
+    bool mem_en;
     uint32_t mem_addr;
     uint32_t mem_data;
     uint32_t mem_mask;
