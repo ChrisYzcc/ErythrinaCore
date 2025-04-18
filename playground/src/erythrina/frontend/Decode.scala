@@ -48,7 +48,7 @@ object FuOpType extends HasErythCoreParams {
 
 object Instructions extends InstrType {
     val decodeDefault = List(TypeER, FuType.alu, ALUop.nop)
-    def decode_table = RVI.table ++ Privileged.table
+    def decode_table = RVI.table ++ Privileged.table ++ RV_Zicsr.table
 }
 
 class Decoder extends ErythModule with InstrType{
@@ -112,7 +112,7 @@ class Decoder extends ErythModule with InstrType{
     // TODO: CSR
     val is_csr = fuType === FuType.csr
 
-    val csr_src1_ready = fuOpType =/= CSRop.jmp
+    val csr_src1_ready = fuOpType === CSRop.jmp
     val csr_src2_ready = true.B
     val csr_rf_wen = fuOpType =/= CSRop.jmp && rd =/= 0.U
 

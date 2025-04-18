@@ -19,4 +19,8 @@ class Exceptions extends ErythBundle {
         ebreak || ecall_m || instr_addr_fault || illegal_instr ||
         load_access_fault || store_access_fault
     }
+
+    def can_commit = {
+        ecall_m
+    }
 }

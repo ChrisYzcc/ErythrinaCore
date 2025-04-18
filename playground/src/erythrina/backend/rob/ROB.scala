@@ -90,8 +90,8 @@ class ROB extends ErythModule {
     val (alloc_req, alloc_rsp) = (io.alloc_req, io.alloc_rsp)
     val alloc_needEnq = Wire(Vec(DispatchWidth, Bool()))
     val alloc_canEnq = Wire(Vec(DispatchWidth, Bool()))
-    val all_canAlloc = alloc_req.map{
-        case e => !e.valid || e.ready
+    val all_canAlloc = alloc_needEnq.zip(alloc_canEnq).map{
+        case (need, can) => !need || can
     }.reduce(_ && _)
 
     for (i <- 0 until DispatchWidth) {
@@ -107,7 +107,7 @@ class ROB extends ErythModule {
             entries(ptr.value) := info
         }
 
-        alloc_req(i).ready  := ptr >= commitPtrExt(0)
+        alloc_req(i).ready  := all_canAlloc
         alloc_rsp(i) := ptr
     }
     val allocNum = PopCount(alloc_needEnq)
@@ -145,7 +145,7 @@ class ROB extends ErythModule {
     redirect.valid := entries(bottom_ptr.value).state.finished && entries(bottom_ptr.value).exception.has_exception && bottom_ptr < allocPtrExt(0)
     redirect.bits.pc := entries(bottom_ptr.value).pc
     redirect.bits.npc := Mux1H(Seq(
-        (entries(bottom_ptr.value).exception.bpu_mispredict || entries(bottom_ptr.value).exception.ret) -> entries(bottom_ptr.value).real_target,
+        (entries(bottom_ptr.value).exception.can_commit) -> entries(bottom_ptr.value).real_target,
         entries(bottom_ptr.value).exception.store2load -> entries(bottom_ptr.value).pc,
         entries(bottom_ptr.value).exception.exceptions.has_exception -> 0.U,
     ))

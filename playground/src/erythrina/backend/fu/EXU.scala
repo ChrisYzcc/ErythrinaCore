@@ -87,13 +87,15 @@ class EXU0 extends BaseEXU {
     cmt_instBlk.real_target := Mux(req_instBlk.fuType === FuType.csr, csr.io.target, bru_target)
     cmt_instBlk.res := LookupTreeDefault(req_instBlk.fuType, 0.U, List(
         FuType.alu -> alu_res,
-        FuType.bru -> bru_rd_res
+        FuType.bru -> bru_rd_res,
+        FuType.csr -> csr.io.res
     ))
 
     cmt_instBlk.state.finished := true.B
     cmt_instBlk.exception.bpu_mispredict := bru_taken =/= req_instBlk.bpu_taken && req_instBlk.fuType === FuType.bru
     cmt_instBlk.exception.ret := csr.io.ret && req_instBlk.fuType === FuType.csr
     cmt_instBlk.exception.exceptions.ebreak := csr.io.ebreak && req_instBlk.fuType === FuType.csr
+    cmt_instBlk.exception.exceptions.ecall_m := csr.io.ecall && req_instBlk.fuType === FuType.csr
     
     cmt.valid := RegNext(req.valid) && !redirect.valid && !RegNext(redirect.valid)
     cmt.bits := RegNext(cmt_instBlk)

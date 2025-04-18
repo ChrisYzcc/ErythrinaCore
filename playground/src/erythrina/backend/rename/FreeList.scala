@@ -66,8 +66,6 @@ class FreeList extends ErythModule {
         }
     }
 
-    
-
     /* --------------- Real FreeList ---------------- */
     // free (enq)
     val free_req = io.free_req

@@ -85,6 +85,13 @@ class DispatchModule extends ErythModule {
         issues(2) := st_issue_req(i).fire
         assert(PopCount(issues) <= 1.U, "Dispatch can only issue one instruction at a time")
 
+        val has_issued = RegInit(false.B)
+        when (dispatch_req(i).fire || redirect.valid) {
+            has_issued := false.B
+        }.otherwise {
+            has_issued := Mux(issues.reduce(_||_), true.B, has_issued)
+        }
+
         val robPtr_has_alloc = RegInit(false.B)
         val robPtr_reg = RegEnable(rob_alloc_rsp(i), 0.U.asTypeOf(new ROBPtr), rob_alloc_req(i).fire)
         val robPtr_ready = robPtr_has_alloc || rob_alloc_req(i).fire
@@ -116,13 +123,13 @@ class DispatchModule extends ErythModule {
         val need_lq_ptr = instExBlk.fuType === FuType.ldu
         val need_sq_ptr = instExBlk.fuType === FuType.stu
 
-        rob_alloc_req(i).valid := dispatch_req(i).valid && !robPtr_has_alloc && !redirect.valid
+        rob_alloc_req(i).valid := dispatch_req(i).valid && !robPtr_has_alloc && !redirect.valid && !has_issued
         rob_alloc_req(i).bits := instExBlk
 
-        lq_alloc_req(i).valid := dispatch_req(i).valid && need_lq_ptr && !lqPtr_has_alloc && !redirect.valid
+        lq_alloc_req(i).valid := dispatch_req(i).valid && need_lq_ptr && !lqPtr_has_alloc && !redirect.valid && !has_issued
         lq_alloc_req(i).bits := instExBlk
 
-        sq_alloc_req(i).valid := dispatch_req(i).valid && need_sq_ptr && !sqPtr_has_alloc && !redirect.valid
+        sq_alloc_req(i).valid := dispatch_req(i).valid && need_sq_ptr && !sqPtr_has_alloc && !redirect.valid && !has_issued
         sq_alloc_req(i).bits := instExBlk
 
         val ptr_ready = robPtr_ready && (!need_lq_ptr || lqPtr_ready) && (!need_sq_ptr || sqPtr_ready)
@@ -133,13 +140,13 @@ class DispatchModule extends ErythModule {
         updateBlk.lqPtr := lqPtr
         updateBlk.sqPtr := sqPtr
 
-        rob_alloc_upt(i).valid := ptr_ready && !redirect.valid
+        rob_alloc_upt(i).valid := ptr_ready && !redirect.valid && !has_issued
         rob_alloc_upt(i).bits := updateBlk
 
-        lq_alloc_upt(i).valid := ptr_ready && need_lq_ptr && !redirect.valid
+        lq_alloc_upt(i).valid := ptr_ready && need_lq_ptr && !redirect.valid && !has_issued
         lq_alloc_upt(i).bits := updateBlk
 
-        sq_alloc_upt(i).valid := ptr_ready && need_sq_ptr && !redirect.valid
+        sq_alloc_upt(i).valid := ptr_ready && need_sq_ptr && !redirect.valid && !has_issued
         sq_alloc_upt(i).bits := updateBlk
 
         // bypass
@@ -182,13 +189,13 @@ class DispatchModule extends ErythModule {
         val is_stu = instExBlk.fuType === FuType.stu
         val is_int = !is_ldu && !is_stu
 
-        int_issue_req(i).valid := dispatch_req(i).valid && is_int && !redirect.valid && ptr_ready
+        int_issue_req(i).valid := dispatch_req(i).valid && is_int && !redirect.valid && ptr_ready && !has_issued
         int_issue_req(i).bits := issueBlk
-        ld_issue_req(i).valid := dispatch_req(i).valid && is_ldu && !redirect.valid && ptr_ready
+        ld_issue_req(i).valid := dispatch_req(i).valid && is_ldu && !redirect.valid && ptr_ready && !has_issued
         ld_issue_req(i).bits := issueBlk
-        st_issue_req(i).valid := dispatch_req(i).valid && is_stu && !redirect.valid && ptr_ready
+        st_issue_req(i).valid := dispatch_req(i).valid && is_stu && !redirect.valid && ptr_ready && !has_issued
         st_issue_req(i).bits := issueBlk
 
-        slot_done(i) := issues.reduce(_||_) || redirect.valid
+        slot_done(i) := issues.reduce(_||_) || redirect.valid || has_issued
     }
 }

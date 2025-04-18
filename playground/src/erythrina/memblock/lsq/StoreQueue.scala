@@ -49,8 +49,8 @@ class StoreQueue extends ErythModule {
     val (alloc_req, alloc_rsp) = (io.alloc_req, io.alloc_rsp)
     val needAlloc = Wire(Vec(DispatchWidth, Bool()))
     val canAlloc = Wire(Vec(DispatchWidth, Bool()))
-    val all_canAlloc = alloc_req.map{
-        case e => !e.valid || e.ready
+    val all_canAlloc = needAlloc.zip(canAlloc).map{
+        case (need, can) => !need || can
     }.reduce(_ && _)
     for (i <- 0 until DispatchWidth) {
         val index = PopCount(needAlloc.take(i))
@@ -65,7 +65,7 @@ class StoreQueue extends ErythModule {
             rob_commited(ptr.value) := false.B
         }
         alloc_rsp(i) := ptr
-        alloc_req(i).ready := ptr >= deqPtrExt
+        alloc_req(i).ready := all_canAlloc
     }
     val allocNum = PopCount(canAlloc)
     allocPtrExt.foreach{case x => when (all_canAlloc) {x := x + allocNum}}

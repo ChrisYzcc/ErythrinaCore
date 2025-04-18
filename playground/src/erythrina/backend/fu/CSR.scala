@@ -31,6 +31,7 @@ class CSR extends ErythModule {
         val csrop = Input(FuOpType.apply())
 
         val ebreak = Output(Bool())
+        val ecall = Output(Bool())
         val ret = Output(Bool())
         val target = Output(UInt(XLEN.W))
 
@@ -95,6 +96,7 @@ class CSR extends ErythModule {
     io.res := csrval
     io.ebreak := is_ebreak
     io.ret := is_mret
+    io.ecall := is_ecall
     io.target := Mux(is_mret, mepc, mtvec)
 
     when (is_ecall) {

@@ -67,6 +67,7 @@ static uint8_t *serial_base = nullptr;
 void serial_handler(uint32_t offset, int operation) {
     assert(operation == 1); // only write
     putchar(serial_base[offset]);
+    fflush(stdout);
 }
 
 void init_serial() {
