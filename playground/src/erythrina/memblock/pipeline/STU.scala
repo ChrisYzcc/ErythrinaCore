@@ -72,7 +72,7 @@ class STU extends ErythModule {
     cmt_instBlk.res := s1_st_data
     cmt_instBlk.addr := Cat(s1_st_addr(31, 2), 0.U(2.W))
     cmt_instBlk.mask := s1_st_mask
-    cmt_instBlk.exception.unknown_addr := s1_st_addr_err
+    cmt_instBlk.exception.exceptions.store_access_fault := s1_st_addr_err
     cmt_instBlk.state.finished := true.B
 
     cmt.valid := s1_valid

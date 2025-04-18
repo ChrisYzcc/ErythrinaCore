@@ -3,9 +3,11 @@ package utils
 import chisel3._
 import chisel3.util._
 
-object HaltOp{
-    val ebreak = 0.U(32.W)
-    val unknown = 1.U(32.W)
+object HaltOp{  // ref to RISC-V exception code
+    val ebreak = 3.U(32.W)
+    
+    val load_af = 5.U(32.W)
+    val store_af = 7.U(32.W)
 }
 
 class Halter extends BlackBox with HasBlackBoxInline {

@@ -86,7 +86,7 @@ class LDU extends ErythModule {
 
     val to_recv_task = WireInit(req_task)
     to_recv_task.addr := addr
-    to_recv_task.exception.unknown_addr := addr_err
+    to_recv_task.exception.exceptions.load_access_fault := addr_err
 
     // sRECV
     val recv_task = RegEnable(to_recv_task, 0.U.asTypeOf(new InstExInfo), axi.ar.fire)
@@ -152,7 +152,7 @@ class LDU extends ErythModule {
     ))
     fwd_query.bits.mask := mask
 
-    r_has_err := recv_task.exception.unknown_addr
+    r_has_err := recv_task.exception.exceptions.load_access_fault
 
     // Cmt
     val cmt_instBlk = WireInit(recv_task)

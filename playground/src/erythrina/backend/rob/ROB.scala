@@ -146,9 +146,8 @@ class ROB extends ErythModule {
     redirect.bits.pc := entries(bottom_ptr.value).pc
     redirect.bits.npc := Mux1H(Seq(
         entries(bottom_ptr.value).exception.bpu_mispredict -> entries(bottom_ptr.value).real_target,
-        entries(bottom_ptr.value).exception.csr_ebreak -> 0.U,
         entries(bottom_ptr.value).exception.store2load -> entries(bottom_ptr.value).pc,
-        entries(bottom_ptr.value).exception.unknown_addr -> 0.U,
+        entries(bottom_ptr.value).exception.exceptions.has_exception -> 0.U,
     ))
 
     when (redirect.valid) {
@@ -208,12 +207,19 @@ class ROB extends ErythModule {
     }
 
     // halter
-    val halter = Module(new Halter)
-    val halter_ebreak = entries(bottom_ptr.value).exception.csr_ebreak && entries(bottom_ptr.value).state.finished
-    val halter_unknown_addr = entries(bottom_ptr.value).exception.unknown_addr && entries(bottom_ptr.value).state.finished
+    val last_entry = entries(bottom_ptr.value)
 
-    halter.io.trigger := RegNext(halter_ebreak || halter_unknown_addr)
-    halter.io.reason := RegNext(Mux(halter_ebreak, HaltOp.ebreak, HaltOp.unknown))
+    val halter = Module(new Halter)
+    val halter_ebreak = last_entry.exception.exceptions.ebreak && last_entry.state.finished
+    val halter_load_af = last_entry.exception.exceptions.load_access_fault && last_entry.state.finished
+    val halter_store_af = last_entry.exception.exceptions.store_access_fault && last_entry.state.finished
+
+    halter.io.trigger := RegNext(halter_ebreak || halter_load_af || halter_store_af)
+    halter.io.reason := RegNext(Mux1H(Seq(
+        halter_ebreak -> HaltOp.ebreak,
+        halter_load_af -> HaltOp.load_af,
+        halter_store_af -> HaltOp.store_af,
+    )))
 
     PerfDumpTrigger("ebreak", halter_ebreak)
 }

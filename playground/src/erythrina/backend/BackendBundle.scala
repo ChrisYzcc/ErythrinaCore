@@ -6,6 +6,7 @@ import erythrina.ErythBundle
 import erythrina.frontend.{FuType, FuOpType, InstInfo}
 import erythrina.backend.rob.ROBPtr
 import erythrina.memblock.lsq.{LQPtr, SQPtr}
+import erythrina.frontend.isa.Exceptions
 
 class InstrState extends Bundle {
     val fetched = Bool()
@@ -16,18 +17,18 @@ class InstrState extends Bundle {
 
 class RobException extends ErythBundle {
     val store2load = Bool() // store-load exception
-    val unknown_addr = Bool()
 
     val bpu_mispredict = Bool() // branch mispredict
 
-    val csr_ebreak = Bool()
+    val exceptions = new Exceptions
+
 
     def can_commit = {
-        bpu_mispredict || csr_ebreak
+        bpu_mispredict
     }
 
     def has_exception = {
-        store2load || bpu_mispredict || csr_ebreak || unknown_addr
+        store2load || bpu_mispredict || exceptions.has_exception
     }
 }
 
