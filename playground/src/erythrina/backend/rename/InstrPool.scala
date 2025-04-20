@@ -12,7 +12,11 @@ import os.makeDir.all
 class InstrPool extends ErythModule {
     val io = IO(new Bundle {
         val enq_req = Flipped(DecoupledIO(Vec(RenameWidth, Valid(new InstExInfo))))  // from IRU
-        val deq_req = Vec(DispatchWidth, DecoupledIO(new InstExInfo))    // to ISU
+        val deq_req = Vec(DispatchWidth, new Bundle {
+            val valid = Input(Bool())
+            val ready = Output(Bool())
+            val bits = Output(new InstExInfo)
+        })
         val redirect = Flipped(ValidIO(new Redirect))
     })
 
@@ -70,10 +74,10 @@ class InstrPool extends ErythModule {
         val index = PopCount(need_deq.take(i))
         val ptr = deqPtrExt(index)
 
-        need_deq(i) := deq_req(i).ready
-        can_deq(i) := need_deq(i) && valids(ptr.value) && ptr <= enqPtrExt(0) && !io.redirect.valid
+        need_deq(i) := deq_req(i).valid
+        can_deq(i) := need_deq(i) && valids(ptr.value) && ptr < enqPtrExt(0) && !io.redirect.valid
         
-        deq_req(i).valid := valids(ptr.value) && ptr <= enqPtrExt(0) && !io.redirect.valid
+        deq_req(i).ready := valids(ptr.value) && ptr < enqPtrExt(0) && !io.redirect.valid
         deq_req(i).bits := entries(ptr.value)
         when (can_deq(i)) {
             valids(ptr.value) := false.B

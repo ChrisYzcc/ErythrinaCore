@@ -11,7 +11,11 @@ import erythrina.frontend.FuType
 
 class ISU extends ErythModule {
     val io = IO(new Bundle {
-        val in = Flipped(DecoupledIO(new InstExInfo))
+        val in = new Bundle {
+            val valid = Output(Bool())
+            val ready = Input(Bool())
+            val bits = Input(new InstExInfo)
+        }
 
         // to ROB
         val rob_alloc_upt = ValidIO(new InstExInfo)    // update LQPtr, SQPtr
@@ -76,21 +80,19 @@ class ISU extends ErythModule {
     val s1_ready = Wire(Bool())
 
     /* ------------- Stage 0 ------------- */
-    s0_valid := in.valid
-    s0_ready := s1_ready || redirect.valid
+    in.valid := s0_ready     // req a instr from InstrPool
 
-    in.ready := s0_ready
+    s0_valid := in.valid && in.ready
+    s0_ready := s1_ready || redirect.valid
 
     /* ------------- Stage 1 ------------- */
     when (s0_valid && s1_ready) {
-        s1_valid := true.B
+        s1_valid := s0_valid && !redirect.valid
         s1_task := s0_task
     }.elsewhen (!s0_valid && s1_ready) {
         s1_valid := false.B
         s1_task := 0.U.asTypeOf(new InstExInfo)
     }
-
-    s1_ready := !s1_valid || s1_valid && (int_issue_req.ready || ld_issue_req.ready || st_issue_req.ready) || !redirect.valid
 
     // Alloc LqPtr and SqPtr
     val lqPtr_has_alloc = RegInit(false.B)
@@ -171,4 +173,6 @@ class ISU extends ErythModule {
     ld_issue_req.bits := out_task
     st_issue_req.valid := s1_valid && is_stu && ptr_ready && !redirect.valid
     st_issue_req.bits := out_task
+
+    s1_ready := !s1_valid || s1_valid && (int_issue_req.ready || ld_issue_req.ready || st_issue_req.ready) && ptr_ready || redirect.valid
 }

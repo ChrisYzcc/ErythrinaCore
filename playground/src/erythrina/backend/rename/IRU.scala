@@ -203,7 +203,9 @@ class IRUStage2 extends ErythModule {
         }
         rob_alloc_req(i).valid := in.bits(i).valid && !redirect.valid && !has_req_rob
         rob_alloc_req(i).bits := in.bits(i).bits
-        rob_ptr_vec(i) := Mux(has_req_rob, rob_alloc_rsp(i), rob_alloc_rsp(i))
+
+        val rob_ptr_reg = RegEnable(rob_alloc_rsp(i), 0.U.asTypeOf(new ROBPtr), rob_alloc_req(i).fire)
+        rob_ptr_vec(i) := Mux(has_req_rob, rob_ptr_reg, rob_alloc_rsp(i))
 
         slot_ready(i) := rob_alloc_req(i).fire || has_req_rob || !in.bits(i).valid
     }
