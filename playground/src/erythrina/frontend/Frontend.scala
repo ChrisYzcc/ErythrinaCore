@@ -14,7 +14,9 @@ class Frontend extends ErythModule {
             val flush = Input(Bool())
             val redirect = Flipped(ValidIO(new Redirect))
         }
-        val to_backend = Vec(DecodeWidth, Decoupled(new InstExInfo))
+        val to_backend = new Bundle {
+            val rename_req = DecoupledIO(Vec(DecodeWidth, Valid(new InstExInfo)))
+        }
 
         // AXI4-Lite
         val ar = DecoupledIO(new AXI4LiteBundleA)
@@ -43,5 +45,5 @@ class Frontend extends ErythModule {
     ifu.io.axi.ar       <> io.ar
     ifu.io.axi.r        <> io.r
 
-    idu.io.decode_res   <> io.to_backend
+    idu.io.decode_res   <> io.to_backend.rename_req
 }

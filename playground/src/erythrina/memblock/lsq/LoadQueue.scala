@@ -17,8 +17,6 @@ class LoadQueue extends ErythModule {
         val alloc_req = Vec(DispatchWidth, Flipped(DecoupledIO(new InstExInfo)))
         val alloc_rsp = Vec(DispatchWidth, Output(new LQPtr))
 
-        val alloc_upt = Vec(DispatchWidth, Flipped(ValidIO(new InstExInfo)))    // update ROBPtr
-
         // rob commit
         val rob_commit = Vec(CommitWidth, Flipped(ValidIO(new LQPtr)))
 
@@ -47,9 +45,6 @@ class LoadQueue extends ErythModule {
     val (alloc_req, alloc_rsp) = (io.alloc_req, io.alloc_rsp)
     val needAlloc = Wire(Vec(DispatchWidth, Bool()))
     val canAlloc = Wire(Vec(DispatchWidth, Bool()))
-    val all_canAlloc = needAlloc.zip(canAlloc).map {
-        case (need, can) => !need || can
-    }.reduce(_ && _)
 
     for (i <- 0 until DispatchWidth) {
         val index = PopCount(needAlloc.take(i))
@@ -57,25 +52,17 @@ class LoadQueue extends ErythModule {
 
         needAlloc(i) := alloc_req(i).valid
         canAlloc(i) := needAlloc(i) && ptr >= deqPtrExt
-        when (canAlloc(i) && all_canAlloc) {
+        when (canAlloc(i)) {
             entries(ptr.value) := alloc_req(i).bits
             valids(ptr.value) := true.B
             ldu_finished(ptr.value) := false.B
         }
 
         alloc_rsp(i) := ptr
-        alloc_req(i).ready := all_canAlloc
+        alloc_req(i).ready := ptr >= deqPtrExt
     }
     val allocNum = PopCount(canAlloc)
-    allocPtrExt.foreach{case x => when (all_canAlloc) {x := x + allocNum}}
-
-    val alloc_upt = io.alloc_upt
-    for (i <- 0 until DispatchWidth) {
-        when (alloc_upt(i).valid) {
-            val ptr = alloc_upt(i).bits.lqPtr
-            entries(ptr.value) := alloc_upt(i).bits
-        }
-    }
+    allocPtrExt.foreach{case x => when (canAlloc.asUInt.orR) {x := x + allocNum}}
 
     // ldu cmt
     val ldu_cmt = io.ldu_cmt

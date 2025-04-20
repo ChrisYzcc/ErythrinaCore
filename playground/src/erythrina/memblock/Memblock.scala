@@ -16,11 +16,9 @@ class Memblock extends ErythModule {
         val from_backend = new Bundle {
             val lq_alloc_req = Vec(DispatchWidth, Flipped(DecoupledIO(new InstExInfo)))
             val lq_alloc_rsp = Vec(DispatchWidth, Output(new LQPtr))
-            val lq_alloc_upt = Vec(DispatchWidth, Flipped(ValidIO(new InstExInfo)))    // update ROBPtr
 
             val sq_alloc_req = Vec(DispatchWidth, Flipped(DecoupledIO(new InstExInfo)))
             val sq_alloc_rsp = Vec(DispatchWidth, Output(new SQPtr))
-            val sq_alloc_upt = Vec(DispatchWidth, Flipped(ValidIO(new InstExInfo)))    // update ROBPtr
 
             val ldu_req = Flipped(DecoupledIO(new InstExInfo))
             val stu_req = Flipped(DecoupledIO(new InstExInfo))
@@ -89,7 +87,6 @@ class Memblock extends ErythModule {
     /* ---------------- Store Queue ---------------- */
     storeQueue.io.alloc_req <> io.from_backend.sq_alloc_req
     storeQueue.io.alloc_rsp <> io.from_backend.sq_alloc_rsp
-    storeQueue.io.alloc_upt <> io.from_backend.sq_alloc_upt
     
     for (i <- 0 until CommitWidth) {
         storeQueue.io.rob_commit(i).valid := io.from_backend.rob_commits(i).valid && io.from_backend.rob_commits(i).bits.isStroe
@@ -103,7 +100,6 @@ class Memblock extends ErythModule {
     /* ---------------- Load Queue ---------------- */
     loadQueue.io.alloc_req <> io.from_backend.lq_alloc_req
     loadQueue.io.alloc_rsp <> io.from_backend.lq_alloc_rsp
-    loadQueue.io.alloc_upt <> io.from_backend.lq_alloc_upt
 
     for (i <- 0 until CommitWidth) {
         loadQueue.io.rob_commit(i).valid := io.from_backend.rob_commits(i).valid && io.from_backend.rob_commits(i).bits.isLoad

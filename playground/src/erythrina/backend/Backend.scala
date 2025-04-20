@@ -7,12 +7,13 @@ import erythrina.memblock.lsq.{LQPtr, SQPtr}
 import erythrina.backend.issue.IssueQueue
 import erythrina.backend.fu.{EXU0, EXU1}
 import erythrina.backend.rob.ROB
-import erythrina.backend.rename.{RAT, FreeList}
+import erythrina.backend.rename.{RAT, FreeList, IRU, InstrPool}
 import erythrina.backend.regfile.{RegFile, BusyTable}
 import erythrina.backend.fu.EXUInfo
 import erythrina.backend.rob.ROBPtr
 import difftest.DifftestInfos
 import erythrina.backend.issue.BypassInfo
+import erythrina.backend.dispatch.ISU
 
 class Backend extends ErythModule {
     val io = IO(new Bundle {
@@ -21,16 +22,16 @@ class Backend extends ErythModule {
             val redirect = ValidIO(new Redirect)
         }
 
-        val from_frontend = Vec(RenameWidth, Flipped(DecoupledIO(new InstExInfo)))
+        val from_frontend = new Bundle {
+            val rename_req = Flipped(DecoupledIO(Vec(RenameWidth, Valid(new InstExInfo))))
+        }
 
         val to_memblock = new Bundle {
             val lq_alloc_req = Vec(DispatchWidth, DecoupledIO(new InstExInfo))
             val lq_alloc_rsp = Vec(DispatchWidth, Input(new LQPtr))
-            val lq_alloc_upt = Vec(DispatchWidth, ValidIO(new InstExInfo))    // update ROBPtr
 
             val sq_alloc_req = Vec(DispatchWidth, DecoupledIO(new InstExInfo))
             val sq_alloc_rsp = Vec(DispatchWidth, Input(new SQPtr))
-            val sq_alloc_upt = Vec(DispatchWidth, ValidIO(new InstExInfo))    // update ROBPtr
 
             val ldu_req = DecoupledIO(new InstExInfo)
             val stu_req = DecoupledIO(new InstExInfo)
@@ -66,7 +67,11 @@ class Backend extends ErythModule {
     val exu0 = Module(new EXU0())
     val exu1 = Module(new EXU1())
 
-    val rdu = Module(new RDU)
+    val iru = Module(new IRU)
+    val instr_pool = Module(new InstrPool)
+
+    val isu_seq = Seq.fill(DispatchWidth)(Module(new ISU))
+
     val rob = Module(new ROB)
     val rat = Module(new RAT)
     val regfile = Module(new RegFile(DispatchWidth * 2, CommitWithDataWidth))
@@ -93,46 +98,54 @@ class Backend extends ErythModule {
     isq_int.io.bypass <> bypass
     isq_ld.io.bypass <> bypass
     isq_st.io.bypass <> bypass
-    rdu.io.bypass <> bypass
-
-
-    /* --------------- RDU -----------------*/
-    rdu.io.req <> io.from_frontend
-    // RDU <-> RAT
-    rdu.io.rat_rs1 <> rat.io.rs1        // req
-    rdu.io.rat_rs2 <> rat.io.rs2
-    rdu.io.rat_rd <> rat.io.rd
-    rdu.io.rat_rs1_phy <> rat.io.rs1_phy    // rsp
-    rdu.io.rat_rs2_phy <> rat.io.rs2_phy
-    rdu.io.rat_rd_phy <> rat.io.rd_phy
-    rdu.io.rat_wr_phy <> rat.io.wr_phy      // update
-    // RDU <-> FreeList
-    rdu.io.fl_req <> freelist.io.alloc_req
-    rdu.io.fl_rsp <> freelist.io.alloc_rsp
-    // RDU <-> ROB
-    rdu.io.rob_alloc_req <> rob.io.alloc_req
-    rdu.io.rob_alloc_rsp <> rob.io.alloc_rsp
-    rdu.io.rob_alloc_upt <> rob.io.alloc_upt
-    // RDU <-> LoadQueue
-    rdu.io.lq_alloc_req <> io.to_memblock.lq_alloc_req
-    rdu.io.lq_alloc_rsp <> io.to_memblock.lq_alloc_rsp
-    rdu.io.lq_alloc_upt <> io.to_memblock.lq_alloc_upt
-    // RDU <-> StoreQueue
-    rdu.io.sq_alloc_req <> io.to_memblock.sq_alloc_req
-    rdu.io.sq_alloc_rsp <> io.to_memblock.sq_alloc_rsp
-    rdu.io.sq_alloc_upt <> io.to_memblock.sq_alloc_upt
-    // RDU <-> RegFile
     for (i <- 0 until DispatchWidth) {
-        rdu.io.rf_rs1(i) <> regfile.io.readPorts(i)
-        rdu.io.rf_rs2(i) <> regfile.io.readPorts(i + DispatchWidth)
+        isu_seq(i).io.bypass <> bypass
     }
-    // RDU <-> BusyTable
-    rdu.io.bt_res <> busyTable.io.readPorts
-    rdu.io.bt_alloc <> busyTable.io.alloc
-    // RDU <-> IssueQueue
-    rdu.io.int_issue_req <> isq_int.io.enq
-    rdu.io.ld_issue_req <> isq_ld.io.enq
-    rdu.io.st_issue_req <> isq_st.io.enq
+
+    /* --------------- IRU ----------------- */
+    iru.io.rename_req <> io.from_frontend.rename_req
+    // IRU <-> RAT
+    iru.io.rs1 <> rat.io.rs1        // req
+    iru.io.rs2 <> rat.io.rs2
+    iru.io.rd <> rat.io.rd
+    iru.io.rs1_phy <> rat.io.rs1_phy    // rsp
+    iru.io.rs2_phy <> rat.io.rs2_phy
+    iru.io.rd_phy <> rat.io.rd_phy
+    iru.io.wr_phy <> rat.io.wr_phy      // update
+    // IRU <-> FreeList
+    iru.io.fl_req <> freelist.io.alloc_req
+    iru.io.fl_rsp <> freelist.io.alloc_rsp
+    // IRU <-> BusyTable
+    iru.io.bt_alloc <> busyTable.io.alloc
+    // IRU <-> ROB
+    iru.io.rob_alloc_req <> rob.io.alloc_req
+    iru.io.rob_alloc_rsp <> rob.io.alloc_rsp
+    // IRU <-> InstrPool
+    iru.io.enq_req <> instr_pool.io.enq_req
+
+    /* --------------- ISU ----------------- */
+    for (i <- 0 until DispatchWidth) {
+        val isu = isu_seq(i)
+
+        isu.io.in <> instr_pool.io.deq_req(i)
+        // ISU <-> ROB
+        isu.io.rob_alloc_upt <> rob.io.alloc_upt(i)
+        // ISU <-> LoadQueue
+        isu.io.lq_alloc_req <> io.to_memblock.lq_alloc_req(i)
+        isu.io.lq_alloc_rsp <> io.to_memblock.lq_alloc_rsp(i)
+        // ISU <-> StoreQueue
+        isu.io.sq_alloc_req <> io.to_memblock.sq_alloc_req(i)
+        isu.io.sq_alloc_rsp <> io.to_memblock.sq_alloc_rsp(i)
+        // ISU <-> RegFile
+        isu.io.rs1 <> regfile.io.readPorts(i)
+        isu.io.rs2 <> regfile.io.readPorts(i + DispatchWidth)
+        // ISU <-> BusyTable
+        isu.io.bt_res <> busyTable.io.readPorts(i)
+        // ISU <-> IssueQueue
+        isu.io.int_issue_req <> isq_int.io.enq(i)
+        isu.io.ld_issue_req <> isq_ld.io.enq(i)
+        isu.io.st_issue_req <> isq_st.io.enq(i)
+    }
     
 
     /* --------------- EXU -----------------*/
@@ -179,7 +192,11 @@ class Backend extends ErythModule {
     io.to_frontend.redirect <> backend_redirect
     io.to_memblock.redirect <> backend_redirect
 
-    rdu.io.redirect <> backend_redirect
+    iru.io.redirect <> backend_redirect
+    instr_pool.io.redirect <> backend_redirect
+    for (i <- 0 until DispatchWidth) {
+        isu_seq(i).io.redirect <> backend_redirect
+    }
     isq_int.io.redirect <> backend_redirect
     isq_ld.io.redirect <> backend_redirect
     isq_st.io.redirect <> backend_redirect
