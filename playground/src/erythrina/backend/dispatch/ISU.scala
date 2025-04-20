@@ -174,5 +174,9 @@ class ISU extends ErythModule {
     st_issue_req.valid := s1_valid && is_stu && ptr_ready && !redirect.valid
     st_issue_req.bits := out_task
 
-    s1_ready := !s1_valid || s1_valid && (int_issue_req.ready || ld_issue_req.ready || st_issue_req.ready) && ptr_ready || redirect.valid
+    val int_issue_ready = !is_int || int_issue_req.ready
+    val ld_issue_ready = !is_ldu || ld_issue_req.ready
+    val st_issue_ready = !is_stu || st_issue_req.ready
+
+    s1_ready := !s1_valid || s1_valid && (int_issue_ready && ld_issue_ready && st_issue_ready) && ptr_ready || redirect.valid
 }
