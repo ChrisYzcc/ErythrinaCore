@@ -32,6 +32,9 @@ sim:
 	$(call git_commit, "sim RTL") # DO NOT REMOVE THIS LINE!!!
 	$(SIM_TARGET) -d $(DIFF_SO) $(IMG) $(ARG) 2> $(BUILD_DIR)/stderr.log
 
+topdown:
+	@python3 $(NPC_HOME)/scripts/topdown.py
+
 wave:
 	$(GTKWAVE) -r .gtkwaverc waveform
 

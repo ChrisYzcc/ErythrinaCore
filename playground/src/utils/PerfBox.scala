@@ -4,21 +4,32 @@ import chisel3._
 import chisel3.util._
 import scala.collection.mutable.ListBuffer
 import chisel3.util.experimental.BoringUtils._
+import chisel3.reflect.DataMirror.isVisible
+import utils.PerfHelper.tapOrGet
 
 class PerfCtrlIO extends Bundle {
     val clean = Bool()
+}
+
+object PerfHelper {
+    def tapOrGet[T <: Data](data: T): T = {
+        if (isVisible(data)) data else tapAndRead(data)
+        }
 }
 
 object PerfCount {
     private val perfEvents = ListBuffer.empty[(String, UInt)]
     private val perfCounters = ListBuffer.empty[(String, UInt)]
     def apply(event_name:String, event:UInt): Unit = {
+        for (i <- 0 until perfEvents.length) {
+            require(perfEvents(i)._1 != event_name, s"Duplicate perf event name: $event_name")
+        }
         perfEvents += ((event_name, event))
     }
     def collect(perf_ctrl: PerfCtrlIO): Unit = {
         perfEvents.foreach{
             case (name, event) =>
-                val perf_event = tapAndRead(event)
+                val perf_event = tapOrGet(event)
                 if (perfCounters.exists(_._1 == name)) {
                     val value = perfCounters.find(_._1 == name).get._2
                     value := Mux(perf_ctrl.clean, 0.U, value + perf_event)
@@ -46,7 +57,7 @@ object PerfDumpTrigger {
     def is_triggered = {
         val trigger_vec = perfDumpTriggers.map{
             case (name, trigger) =>
-                tapAndRead(trigger).asBool
+                tapOrGet(trigger).asBool
         }
         if (trigger_vec.isEmpty) {
             false.B

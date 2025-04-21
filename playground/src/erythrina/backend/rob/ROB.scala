@@ -10,6 +10,7 @@ import erythrina.backend.Redirect
 import utils.LookupTree
 import utils.{Halter, HaltOp}
 import utils.PerfDumpTrigger
+import utils.PerfCount
 
 class ROB extends ErythModule {
     val io = IO(new Bundle {
@@ -222,4 +223,7 @@ class ROB extends ErythModule {
     )))
 
     PerfDumpTrigger("ebreak", halter_ebreak)
+
+    /* -------------------- TopDown -------------------- */
+    PerfCount("topdown_SlotsRetired", PopCount(io.difftest.map(_.valid)))
 }

@@ -91,7 +91,4 @@ class IFU extends ErythModule {
         valids(deqPtrExt.value) := false.B
         ar_has_req_vec(deqPtrExt.value) := false.B
     }
-
-    // Perf
-    PerfCount("IFU_AR_WAIT", axi.ar.valid && !axi.ar.ready)
 }

@@ -8,6 +8,7 @@
 !*.v
 !*.cpp
 !*.cc
+!*.py
 !.gitignore
 !.scalafmt.conf
 !README.md

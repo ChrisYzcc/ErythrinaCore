@@ -6,6 +6,7 @@ import erythrina.ErythModule
 import bus.axi4._
 import utils.StageConnect
 import erythrina.backend.{InstExInfo, Redirect}
+import utils.PerfCount
 
 // Frontend Top
 class Frontend extends ErythModule {
@@ -46,4 +47,11 @@ class Frontend extends ErythModule {
     ifu.io.axi.r        <> io.r
 
     idu.io.decode_res   <> io.to_backend.rename_req
+
+    /* -------------------- TopDown -------------------- */
+    PerfCount("topdown_TotalSlots", DecodeWidth.U)
+    PerfCount("topdown_SlotsIssued", Mux(io.to_backend.rename_req.fire, PopCount(io.to_backend.rename_req.bits.map(_.valid)), 0.U))
+    val fetch_bubble_slots = Mux(io.to_backend.rename_req.valid, PopCount(io.to_backend.rename_req.bits.map(!_.valid)), DecodeWidth.U)
+    PerfCount("topdown_FetchBubbles", Mux(io.to_backend.rename_req.ready && !(io.from_backend.flush || io.from_backend.redirect.valid), fetch_bubble_slots, 0.U))
+    PerfCount("topdown_RecoveryBubbles", Mux((io.from_backend.flush || io.from_backend.redirect.valid) && io.to_backend.rename_req.ready, DecodeWidth.U, 0.U))
 }
