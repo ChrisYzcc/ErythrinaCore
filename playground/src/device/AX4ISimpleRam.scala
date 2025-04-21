@@ -3,7 +3,6 @@ package device
 import chisel3._
 import chisel3.util._
 import bus.axi4._
-import erythrina.backend.fu.CSRop.set
 
 class MemReadHelpler extends BlackBox with HasBlackBoxInline {
     val io = IO(new Bundle {

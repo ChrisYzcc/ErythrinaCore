@@ -13,11 +13,12 @@ class SimTop extends Module {
 
     val core = Module(new ErythrinaCore)
 
-    val axi_simpleRam_i = Module(new AX4ISimpleRam(new AXI4Lite))
-    val axi_simpleRam_d = Module(new AX4ISimpleRam(new AXI4Lite))
+    val axi_arb = Module(new AXI4LiteArbiter(2))
+    axi_arb.io.in(0) <> core.io.d_axi
+    axi_arb.io.in(1) <> core.io.i_axi
 
-    core.io.i_axi <> axi_simpleRam_i.io.axi
-    core.io.d_axi <> axi_simpleRam_d.io.axi
+    val axi_simpleRam = Module(new AX4ISimpleRam(new AXI4Lite))
+    axi_simpleRam.io.axi <> axi_arb.io.out
     
     val difftest = Module(new DifftestBox)
     difftest.io.diff_infos <> core.io.difftest
