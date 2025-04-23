@@ -27,3 +27,13 @@ class SimTop extends Module {
         val perfBox = Module(new PerfBox)
     }
 }
+
+class YSYXTop extends Module {
+    val io = IO(new Bundle {
+        val master = new AXI4
+        val slave = Flipped(new AXI4)
+        val interrupt = Input(Bool())
+    })
+
+    val core = Module(new ErythrinaCore)
+}

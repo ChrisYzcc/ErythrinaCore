@@ -70,3 +70,14 @@ class AXI4LiteArbiter(n:Int) extends Module {
         in(i).b.bits := out.b.bits
     }
 }
+
+class AXI4Arbiter(n:Int) extends Module {
+    val io = IO(new Bundle {
+        val in = Vec(n, Flipped(new AXI4))
+        val out = new AXI4
+    })
+
+    val (in, out) = (io.in, io.out)
+
+    /* ----------------- Read Channel ----------------- */
+}

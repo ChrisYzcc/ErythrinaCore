@@ -20,7 +20,7 @@ object AXI4Params extends HasErythCoreParams {
     // These are not fixed:
     val idBits    = 1
     val addrBits  = PAddrBits
-    val dataBits  = DataBits * 2
+    val dataBits  = DataBits
     val userBits  = 1
 
     def CACHE_RALLOCATE  = 8.U(cacheBits.W)
