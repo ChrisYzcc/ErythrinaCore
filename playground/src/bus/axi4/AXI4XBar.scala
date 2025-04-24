@@ -6,8 +6,8 @@ import erythrina.ErythModule
 
 class AXI4XBar(addr_space: List[(UInt, UInt)]) extends ErythModule {
     val io = IO(new Bundle {
-        val in = Flipped(new AXI4Lite)
-        val out = Vec(addr_space.size, new AXI4Lite)
+        val in = Flipped(new AXI4)
+        val out = Vec(addr_space.size, new AXI4)
     })
 
     val (in, out) = (io.in, io.out)

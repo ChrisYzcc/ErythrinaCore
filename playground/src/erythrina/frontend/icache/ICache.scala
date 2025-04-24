@@ -4,19 +4,18 @@ import chisel3._
 import chisel3.util._
 import bus.axi4._
 import erythrina.{ErythModule, ErythBundle}
-import erythrina.frontend.InstInfo
+import erythrina.frontend.InstFetchBlock
+
+class ICacheParams(
+    val CacheableRange : (0xa0000000L, 0xbfffffffL)
+)
 
 class DummyICache extends ErythModule {
     val io = IO(new Bundle {
-        val axi_master = new AXI4
-
-        val axi_slave = new Bundle {
-            val ar = Flipped(new AXI4LiteBundleA)
-            val r = DecoupledIO(new AXI4LiteBundleR(dataBits = 64))
-        }
+        val axi = new AXI4
+        val req = Flipped(ValidIO(new InstFetchBlock))
+        val rsp = ValidIO(new InstFetchBlock)
     })
-
-    val (axi_master, axi_slave) = (io.axi_master, io.axi_slave)
 
     
 }
