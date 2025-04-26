@@ -14,8 +14,8 @@ abstract class ErythModule extends Module with HasErythCoreParams
 
 class ErythrinaCore extends ErythModule {
     val io = IO(new Bundle {
-        val i_axi = new AXI4Lite
-        val d_axi = new AXI4Lite
+        val i_axi = new AXI4
+        val d_axi = new AXI4
         val difftest = Vec(CommitWidth, ValidIO(new DifftestInfos))
     })
 

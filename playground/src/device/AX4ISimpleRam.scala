@@ -20,7 +20,7 @@ class MemReadHelpler extends BlackBox with HasBlackBoxInline {
         |    output port_rsp_valid,
         |    output [${AXI4Params.dataBits-1}:0] port_rsp_bits
         |);
-        |   import "DPI-C" function longint mem_read(input int paddr);
+        |   import "DPI-C" function int mem_read(input int paddr);
         |   
         |   // FSM
         |   reg [1:0] cur_state, nxt_state;
