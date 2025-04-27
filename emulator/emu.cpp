@@ -160,7 +160,7 @@ Emulator::~Emulator() {
     delete dram;
 
     printf("===============================================\n");
-    printf("Total Cycles: %ld, Total Instrs: %ld\nIPC: %.2lf\n",
+    printf("Total Cycles: %ld, Total Instrs: %ld\nIPC: %.5lf\n",
         cycles, inst_count, (double)inst_count / cycles);
 }
 

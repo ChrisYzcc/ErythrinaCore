@@ -9,8 +9,8 @@ class FTQ extends ErythModule {
     val io = IO(new Bundle {
         val enq_req  = Flipped(DecoupledIO(new InstFetchBlock))        // from BPU, enq
 
-        val fetch_req   = DecoupledIO(new InstFetchBlock)               // to IFU
-        val fetch_rsp  = Flipped(ValidIO(new InstFetchBlock))      // from IFU
+        val fetch_req   = ValidIO(new InstFetchBlock)               // to IBuffer
+        val fetch_rsp  = Flipped(ValidIO(new InstFetchBlock))      // from IBuffer
 
         val decode_req  = DecoupledIO(new InstFetchBlock)               // to IDU, deq
     
@@ -65,18 +65,18 @@ class FTQ extends ErythModule {
         fetched(deqPtrExt.value) := false.B
     }
 
-    // fetch req
     val fetch_req = io.fetch_req
+    val fetch_resp = io.fetch_rsp
+
+    // fetch req
     fetch_req.valid := valids(fetchPtrExt.value) && !fetched(fetchPtrExt.value) && !io.flush && !reset.asBool
     fetch_req.bits := entries(fetchPtrExt.value)
 
-    when (fetch_req.fire && fetchPtrExt < enqPtrExt) {
+    when (fetch_req.valid && fetchPtrExt < enqPtrExt && fetch_resp.valid) {
         fetchPtrExt := fetchPtrExt + 1.U
     }
 
     // fetch resp
-    val fetch_resp = io.fetch_rsp
-
     val fetch_entry = fetch_resp.bits
     when (fetch_resp.valid) {
         entries(fetch_entry.ftqIdx) := fetch_entry

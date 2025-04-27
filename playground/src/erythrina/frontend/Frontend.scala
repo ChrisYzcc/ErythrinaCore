@@ -33,7 +33,6 @@ class Frontend extends ErythModule {
 
     ftq.io.flush := flush || io.from_backend.redirect.valid
     idu.io.flush := flush || io.from_backend.redirect.valid
-    ibuffer.io.flush := flush || io.from_backend.redirect.valid
     bpu.io.flush := flush
     bpu.io.redirect <> redirect
 

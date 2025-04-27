@@ -8,7 +8,7 @@
 
 #define DUT_TOP VSimTop
 
-#define TIMEOUT_CYCLES 1500
+#define TIMEOUT_CYCLES 15000
 
 #ifndef __SOC__
     #define PC_RSTVEC 0x80000000

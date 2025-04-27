@@ -72,10 +72,12 @@ class BPU extends ErythModule {
     }
 
     val nxt_blk = WireInit(0.U.asTypeOf(new InstFetchBlock))
+    val base_cacheline = nxt_blk.instVec(0).pc(XLEN - 1, log2Ceil(CachelineSize))
     for (i <- 0 until FetchWidth) {
-        nxt_blk.instVec(i).valid := true.B
         nxt_blk.instVec(i).pc := s1_task.base_pc + (i.U << 2) + Mux(s1_task.is_redirect, 0.U, 4.U)
         nxt_blk.instVec(i).bpu_taken := false.B
+
+        nxt_blk.instVec(i).valid := nxt_blk.instVec(i).pc(XLEN - 1, log2Ceil(CachelineSize)) === base_cacheline
     }
 
     s1_ready := !s1_valid || io.flush || s1_valid && io.ftq_enq_req.ready || io.redirect.valid
