@@ -24,9 +24,9 @@ class StoreQueue extends ErythModule {
 
         // to mem/D$
         val axi = new Bundle {
-            val aw = DecoupledIO(new AXI4LiteBundleA)
-            val w = DecoupledIO(new AXI4LiteBundleW(dataBits = XLEN))
-            val b = Flipped(DecoupledIO(new AXI4LiteBundleB))
+            val aw = DecoupledIO(new AXI4BundleA(AXI4Params.idBits))
+            val w = DecoupledIO(new AXI4BundleW(AXI4Params.dataBits))
+            val b = Flipped(DecoupledIO(new AXI4BundleB(AXI4Params.idBits)))
         }
 
         // redirect
@@ -136,11 +136,11 @@ class StoreQueue extends ErythModule {
     }
 
     axi.aw.valid := state === sREQ && valids(deqPtrExt.value) && stu_finished(deqPtrExt.value) && rob_commited(deqPtrExt.value)
-    axi.aw.bits := 0.U.asTypeOf(new AXI4LiteBundleA)
+    axi.aw.bits := 0.U.asTypeOf(axi.aw.bits)
     axi.aw.bits.addr := entries(deqPtrExt.value).addr
 
     axi.w.valid := state === sREQ && valids(deqPtrExt.value) && stu_finished(deqPtrExt.value) && rob_commited(deqPtrExt.value)
-    axi.w.bits := 0.U.asTypeOf(new AXI4LiteBundleW(dataBits = XLEN))
+    axi.w.bits := 0.U.asTypeOf(axi.w.bits)
     axi.w.bits.data := entries(deqPtrExt.value).res
     axi.w.bits.strb := entries(deqPtrExt.value).mask
 

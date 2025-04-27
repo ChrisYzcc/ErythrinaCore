@@ -7,6 +7,7 @@ import erythrina.frontend.Frontend
 import erythrina.backend.Backend
 import erythrina.memblock.Memblock
 import difftest.DifftestInfos
+import erythrina.frontend.icache.ICacheDummy
 
 abstract class ErythBundle extends Bundle with HasErythCoreParams
 
@@ -25,11 +26,10 @@ class ErythrinaCore extends ErythModule {
     val backend = Module(new Backend)
     val memblock = Module(new Memblock)
 
-    frontend.io.ar <> i_axi.ar
-    frontend.io.r <> i_axi.r
-    i_axi.aw <> DontCare
-    i_axi.w <> DontCare
-    i_axi.b <> DontCare
+    val icache = Module(new ICacheDummy)
+    icache.io.req <> frontend.io.icache_req
+    icache.io.rsp <> frontend.io.icache_rsp
+    icache.io.axi <> i_axi
 
     memblock.io.axi.ldu.ar <> d_axi.ar
     memblock.io.axi.ldu.r <> d_axi.r

@@ -157,6 +157,8 @@ Emulator::~Emulator() {
     dut_ptr->final();
 
     delete dut_ptr;
+    delete dram;
+
     printf("===============================================\n");
     printf("Total Cycles: %ld, Total Instrs: %ld\nIPC: %.2lf\n",
         cycles, inst_count, (double)inst_count / cycles);
@@ -189,6 +191,8 @@ inline void Emulator::single_cycle() {
         trap(TRAP_SIM_STOP, 0);
         return;
     }
+
+    dram->tick();
 
     dut_ptr->clock = 1;
     dut_ptr->eval();

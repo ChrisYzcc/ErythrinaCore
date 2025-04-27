@@ -17,9 +17,9 @@ class SimTop extends Module {
     axi_arb.io.in(0) <> core.io.d_axi
     axi_arb.io.in(1) <> core.io.i_axi
 
-    val axi_simpleRam = Module(new AX4ISimpleRam)
-    axi_simpleRam.io.axi <> axi_arb.io.out
-    
+    val axi_memory = Module(new AXI4Memory)
+    axi_memory.axi <> axi_arb.io.out
+
     val difftest = Module(new DifftestBox)
     difftest.io.diff_infos <> core.io.difftest
 

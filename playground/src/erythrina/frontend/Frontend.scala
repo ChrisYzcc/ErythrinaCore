@@ -19,32 +19,32 @@ class Frontend extends ErythModule {
             val rename_req = DecoupledIO(Vec(DecodeWidth, Valid(new InstExInfo)))
         }
 
-        // AXI4-Lite
-        val ar = DecoupledIO(new AXI4LiteBundleA)
-        val r = Flipped(DecoupledIO(new AXI4LiteBundleR(dataBits = 64)))
+        val icache_req = DecoupledIO(UInt(XLEN.W))
+        val icache_rsp = Flipped(ValidIO(UInt((CachelineSize * 8).W)))
+
     })
 
     val (flush, redirect) = (io.from_backend.flush, io.from_backend.redirect)
 
     val ftq = Module(new FTQ)
     val idu = Module(new IDU)
-    val ifu = Module(new IFU)
     val bpu = Module(new BPU)
+    val ibuffer = Module(new IBuffer)
 
     ftq.io.flush := flush || io.from_backend.redirect.valid
     idu.io.flush := flush || io.from_backend.redirect.valid
-    ifu.io.flush := flush || io.from_backend.redirect.valid
+    ibuffer.io.flush := flush || io.from_backend.redirect.valid
     bpu.io.flush := flush
     bpu.io.redirect <> redirect
 
-    ftq.io.fetch_req    <> ifu.io.fetch_req
-    ftq.io.fetch_rsp    <> ifu.io.fetch_rsp
+    ftq.io.fetch_req    <> ibuffer.io.fetch_req
+    ftq.io.fetch_rsp    <> ibuffer.io.fetch_rsp
     ftq.io.enq_req      <> bpu.io.ftq_enq_req
     
     ftq.io.decode_req   <> idu.io.decode_req
     
-    ifu.io.axi.ar       <> io.ar
-    ifu.io.axi.r        <> io.r
+    ibuffer.io.req      <> io.icache_req
+    ibuffer.io.rsp      <> io.icache_rsp
 
     idu.io.decode_res   <> io.to_backend.rename_req
 

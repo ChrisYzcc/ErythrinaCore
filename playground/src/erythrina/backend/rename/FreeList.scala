@@ -48,7 +48,7 @@ class FreeList extends ErythModule {
     val deqPtrExt = Reg(Vec(RenameWidth, new Ptr))  // alloc
     val enqPtrExt = Reg(Vec(CommitWidth, new Ptr))  // free
 
-    val arch_deqPtrExt = Reg(Vec(RenameWidth, new Ptr))  // alloc
+    val arch_deqPtrExt = Reg(Vec(CommitWidth, new Ptr))  // alloc
     val arch_enqPtrExt = Reg(Vec(CommitWidth, new Ptr))  // free
     
 

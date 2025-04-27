@@ -1,15 +1,36 @@
 #include "memory.h"
 #include "common.h"
+#include "cosimulation.h"
 #include "device.h"
 #include "emu.h"
 #include <cstdint>
+#include <iostream>
 
 uint8_t pmem[MEMSIZE];
 uint8_t mrom[MROM_SIZE];
 uint8_t sram[SRAM_SIZE];
 uint8_t flash[FLASH_SIZE];
 
+CoDRAMsim3 *dram = nullptr;
+
+const char *config_file = nullptr;
+const char *out_dir = nullptr;
+
 long init_mem(char *img){
+    std::cout << "[INFO] Initialize memory" << std::endl;
+
+    // Initialize the DRAMSim3
+#ifdef DRAMSIM3_CONFIG
+config_file = DRAMSIM3_CONFIG;
+#endif
+
+#ifdef DRAMSIM3_OUTDIR
+out_dir = DRAMSIM3_OUTDIR;
+#endif
+    std::cout << "DRAMSIM3 config: " << config_file << std::endl;
+    std::cout << "DRAMSIM3 outdir: " << out_dir << std::endl;
+    dram = new ComplexCoDRAMsim3(config_file, out_dir);
+
     if (img == nullptr) {
         printf("Use default image.\n");
         memcpy(guest2host(PC_RSTVEC), default_inst, sizeof(default_inst));

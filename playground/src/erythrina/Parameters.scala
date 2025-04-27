@@ -37,7 +37,7 @@ trait HasErythCoreParams {
     val PAddrBits = XLEN
     val DataBits = XLEN
 
-    val CachelineSize = 64
+    val CachelineSize = 16
     
     val FuOpTypeBits = 7
 

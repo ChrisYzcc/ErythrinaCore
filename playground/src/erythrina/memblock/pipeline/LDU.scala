@@ -17,8 +17,8 @@ class LDU extends ErythModule {
     val io = IO(new Bundle {
         val req = Flipped(DecoupledIO(new InstExInfo))
         val axi = new Bundle {
-            val ar = DecoupledIO(new AXI4LiteBundleA)
-            val r = Flipped(DecoupledIO(new AXI4LiteBundleR(dataBits = XLEN)))
+            val ar = DecoupledIO(new AXI4BundleA(AXI4Params.idBits))
+            val r = Flipped(DecoupledIO(new AXI4BundleR(AXI4Params.dataBits, AXI4Params.idBits)))
         }
 
         val st_fwd_query = ValidIO(new StoreFwdBundle)
@@ -82,7 +82,7 @@ class LDU extends ErythModule {
     val addr_err = !AddrSpace.in_addr_space(req_addr)
 
     axi.ar.valid := state === sREQ && !redirect.valid && !addr_err
-    axi.ar.bits := 0.U.asTypeOf(new AXI4LiteBundleA)
+    axi.ar.bits := 0.U.asTypeOf(axi.ar.bits)
     axi.ar.bits.addr := req_addr
 
     val to_recv_task = WireInit(req_task)

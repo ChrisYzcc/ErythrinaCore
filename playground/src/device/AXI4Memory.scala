@@ -10,9 +10,9 @@ import chisel3.experimental.{ExtModule, prefix}
 import bus.axi4._
 
 class MemReqHelper extends BlackBox with HasBlackBoxInline {
-	val clock = IO(Input(Clock()))
-	val reset = IO(Input(Reset()))
 	val io = IO(new Bundle {
+		val clock = Input(Clock())
+		val reset = Input(Reset())
 		val req = Flipped(ValidIO(new Bundle {
 			val addr = UInt(AXI4Params.addrBits.W)
 			val id = UInt(AXI4Params.idBits.W)
@@ -25,11 +25,11 @@ class MemReqHelper extends BlackBox with HasBlackBoxInline {
 		s"""module MemReqHelper(
 			|	input clock,
 			|	input reset,
-			|   input io_req_valid,
-			|   input [31:0] io_req_bits_addr,
-			|   input [3:0] io_req_bits_id,
-			|   input io_req_bits_is_write,
-			|	output reg io_rsp
+			|   input req_valid,
+			|   input [31:0] req_bits_addr,
+			|   input [3:0] req_bits_id,
+			|   input req_bits_is_write,
+			|	output reg rsp
 			|);
 			|	import "DPI-C" function bit mem_req(
 			|		input int address,
@@ -39,14 +39,14 @@ class MemReqHelper extends BlackBox with HasBlackBoxInline {
 			|
 			|	always @(posedge clock or posedge reset) begin
 			|		if (reset) begin
-			|			io_rsp <= 1'b0;
+			|			rsp <= 1'b0;
 			|		end
 			|		else begin
-			|			if (io_req_valid) begin
-			|				io_rsp <= mem_req(io_req_bits_addr, io_req_bits_id, io_req_bits_is_write);	
+			|			if (req_valid) begin
+			|				rsp <= mem_req(req_bits_addr, {28'b0, req_bits_id}, req_bits_is_write);	
 			|			end
 			|			else begin
-			|				io_rsp <= 1'b0;
+			|				rsp <= 1'b0;
 			|			end
 			|		end
 			|	end
@@ -54,9 +54,9 @@ class MemReqHelper extends BlackBox with HasBlackBoxInline {
 }
 
 class MemRspHelper extends BlackBox with HasBlackBoxInline {
-	val clock = IO(Input(Clock()))
-	val reset = IO(Input(Reset()))
 	val io = IO(new Bundle {
+		val clock = Input(Clock())
+		val reset = Input(Reset())
 		val enable = Input(Bool())
 		val is_write = Input(Bool())
 		val response = Output(UInt(64.W))
@@ -66,23 +66,23 @@ class MemRspHelper extends BlackBox with HasBlackBoxInline {
 		s"""module MemRspHelper(
 			|	input clock,
 			|	input reset,
-			|   input io_enable,
-			|   input io_is_write,
-			|   output reg [63:0] io_response
+			|   input enable,
+			|   input is_write,
+			|   output reg [63:0] response
 			|);
 			|	
 			|	import "DPI-C" function longint mem_rsp(input bit is_write);
 			|	
 			|	always @(posedge clock or posedge reset) begin
 			|		if (reset) begin
-			|			io_response <= 64'b0;
+			|			response <= 64'b0;
 			|		end
 			|		else begin
-			|			if (!reset && io_enable) begin
-			|				io_response <= mem_rsp(io_is_write);
+			|			if (!reset && enable) begin
+			|				response <= mem_rsp(is_write);
 			|			end
 			|			else begin
-			|				io_response <= 64'b0;
+			|				response <= 64'b0;
 			|			end
 			|		end
 			|	end
@@ -91,46 +91,48 @@ class MemRspHelper extends BlackBox with HasBlackBoxInline {
 
 
 class AXI4Memory extends Module {
-	val mem_req_helper = Module(new MemReqHelper)
-	val mem_rsp_helper = Module(new MemRspHelper)
+	val mem_rd_req_helper = Module(new MemReqHelper)
+	val mem_rd_rsp_helper = Module(new MemRspHelper)
+	val mem_wr_req_helper = Module(new MemReqHelper)
+	val mem_wr_rsp_helper = Module(new MemRspHelper)
 	val mem_rd_helper = Module(new MemReadHelpler)
 	val mem_wr_helper = Module(new MemWriteHelper)
 
 	def readRequest(valid:Bool, addr:UInt, id:UInt): Bool = {
-		mem_req_helper.clock := clock
-		mem_req_helper.reset := reset
-		mem_req_helper.io.req.valid := valid
-		mem_req_helper.io.req.bits.addr := addr
-		mem_req_helper.io.req.bits.id := id
-		mem_req_helper.io.req.bits.is_write := false.B
-		mem_req_helper.io.rsp
+		mem_rd_req_helper.io.clock := clock
+		mem_rd_req_helper.io.reset := reset
+		mem_rd_req_helper.io.req.valid := valid
+		mem_rd_req_helper.io.req.bits.addr := addr
+		mem_rd_req_helper.io.req.bits.id := id
+		mem_rd_req_helper.io.req.bits.is_write := false.B
+		mem_rd_req_helper.io.rsp
 	}
 
 	def writeRequest(valid:Bool, addr:UInt, id:UInt): Bool = {
-		mem_req_helper.clock := clock
-		mem_req_helper.reset := reset
-		mem_req_helper.io.req.valid := valid
-		mem_req_helper.io.req.bits.addr := addr
-		mem_req_helper.io.req.bits.id := id
-		mem_req_helper.io.req.bits.is_write := true.B
-		mem_req_helper.io.rsp
+		mem_wr_req_helper.io.clock := clock
+		mem_wr_req_helper.io.reset := reset
+		mem_wr_req_helper.io.req.valid := valid
+		mem_wr_req_helper.io.req.bits.addr := addr
+		mem_wr_req_helper.io.req.bits.id := id
+		mem_wr_req_helper.io.req.bits.is_write := true.B
+		mem_wr_req_helper.io.rsp
 	}
 
 	def readResponse(enable:Bool): (Bool, UInt) = {
-		mem_rsp_helper.clock := clock
-		mem_rsp_helper.reset := reset
-		mem_rsp_helper.io.enable := enable
-		mem_rsp_helper.io.is_write := false.B
-		val response = mem_rsp_helper.io.response
+		mem_rd_rsp_helper.io.clock := clock
+		mem_rd_rsp_helper.io.reset := reset
+		mem_rd_rsp_helper.io.enable := enable
+		mem_rd_rsp_helper.io.is_write := false.B
+		val response = mem_rd_rsp_helper.io.response
 		(response(32), response(31, 0))
 	}
 
 	def writeResponse(enable:Bool): (Bool, UInt) = {
-		mem_rsp_helper.clock := clock
-		mem_rsp_helper.reset := reset
-		mem_rsp_helper.io.enable := enable
-		mem_rsp_helper.io.is_write := true.B
-		val response = mem_rsp_helper.io.response
+		mem_wr_rsp_helper.io.clock := clock
+		mem_wr_rsp_helper.io.reset := reset
+		mem_wr_rsp_helper.io.enable := enable
+		mem_wr_rsp_helper.io.is_write := true.B
+		val response = mem_wr_rsp_helper.io.response
 		(response(32), response(31, 0))
 	}
 
@@ -151,7 +153,7 @@ class AXI4Memory extends Module {
 		mem_wr_helper.io.port_req.bits.mask := mask
 	}
 
-	val axi = IO(new AXI4)
+	val axi = IO(Flipped(new AXI4))
 
 	/* --------------------- Read --------------------- */
 	val ddr_rd_req_ready = Wire(Bool())

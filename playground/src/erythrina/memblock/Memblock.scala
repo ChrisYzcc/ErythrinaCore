@@ -46,13 +46,13 @@ class Memblock extends ErythModule {
 
         val axi = new Bundle {
             val ldu = new Bundle {
-                val ar = DecoupledIO(new AXI4LiteBundleA)
-                val r = Flipped(DecoupledIO(new AXI4LiteBundleR(dataBits = XLEN)))
+                val ar = DecoupledIO(new AXI4BundleA(AXI4Params.idBits))
+                val r = Flipped(DecoupledIO(new AXI4BundleR(AXI4Params.dataBits, AXI4Params.idBits)))
             }
             val stu = new Bundle {
-                val aw = DecoupledIO(new AXI4LiteBundleA)
-                val w = DecoupledIO(new AXI4LiteBundleW(dataBits = XLEN))
-                val b = Flipped(DecoupledIO(new AXI4LiteBundleB))
+                val aw = DecoupledIO(new AXI4BundleA(AXI4Params.idBits))
+                val w = DecoupledIO(new AXI4BundleW(AXI4Params.dataBits))
+                val b = Flipped(DecoupledIO(new AXI4BundleB(AXI4Params.idBits)))
             }
         }
     })
