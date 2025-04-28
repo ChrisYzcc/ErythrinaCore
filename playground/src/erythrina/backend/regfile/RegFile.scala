@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 import erythrina.ErythModule
 import erythrina.HasErythCoreParams
+import top.Config
 
 class RegFilePeeker extends BlackBox with HasBlackBoxInline with HasErythCoreParams {
     val io = IO(new Bundle {
@@ -90,8 +91,10 @@ class RegFile(numReadPorts: Int, numWritePorts: Int) extends ErythModule {
     }
 
     // For Difftest
-    val peeker = Module(new RegFilePeeker)
-    for (i <- 0 until PhyRegNum) {
-        peeker.io.rf_value_vec(i) := regFile(i)
-    }
+    if (!Config.isTiming) {
+        val peeker = Module(new RegFilePeeker)
+        for (i <- 0 until PhyRegNum) {
+            peeker.io.rf_value_vec(i) := regFile(i)
+        }
+    }   
 }

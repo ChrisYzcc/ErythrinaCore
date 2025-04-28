@@ -5,6 +5,7 @@ import chisel3.util._
 import erythrina.ErythModule
 import erythrina.backend.Redirect
 import erythrina.HasErythCoreParams
+import top.Config
 
 class ArchRATPeeker extends BlackBox with HasBlackBoxInline with HasErythCoreParams {
     val io = IO(new Bundle {
@@ -122,9 +123,10 @@ class RAT extends ErythModule {
     }
 
     // Peeker for difftest
-    val peeker = Module(new ArchRATPeeker)
-    for (i <- 0 until ArchRegNum) {
-        peeker.io.arch_rat_value(i) := arch_rat(i)
-    }
-    
+    if (!Config.isTiming) {
+        val peeker = Module(new ArchRATPeeker)
+        for (i <- 0 until ArchRegNum) {
+            peeker.io.arch_rat_value(i) := arch_rat(i)
+        }
+    }    
 }

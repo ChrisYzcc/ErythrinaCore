@@ -15,6 +15,7 @@
 build/
 
 !.gtkwaverc
+!*.bin
 
 # mill
 !*.mill

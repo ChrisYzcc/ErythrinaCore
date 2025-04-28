@@ -25,13 +25,15 @@ VSRCS ?= $(shell find $(abspath $(RTL_SIM_DIR)) -name "*.v" -or -name "*.sv")
 $(VSRCS): $(SIM_VERILOG_SRC)
 endif
 
-verilate:
+SIM_TARGET = $(OBJ_DIR)/V$(TOP_NAME)
+
+$(SIM_TARGET): $(SIM_VERILOG_SRC)
 	mkdir -p $(OBJ_DIR)
 	$(VERILATOR) $(VFLG) --Mdir $(OBJ_DIR) --top-module $(TOP_NAME) $(VSRCS) $(EMU_CSRC) $(DRAM_SRC)
 
-SIM_TARGET = $(OBJ_DIR)/V$(TOP_NAME)
-
-sim:
+verilate: $(SIM_TARGET)
+	
+sim: $(SIM_TARGET)
 	$(call git_commit, "sim RTL") # DO NOT REMOVE THIS LINE!!!
 	$(SIM_TARGET) -d $(DIFF_SO) $(IMG) $(ARG) 2> $(BUILD_DIR)/stderr.log
 

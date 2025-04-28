@@ -28,6 +28,19 @@ class SimTop extends Module {
     }
 }
 
+class PerfTop extends Module {
+    Config.isTiming = true
+    val io = IO(new AXI4)
+
+    val core = Module(new ErythrinaCore)
+
+    val axi_arb = Module(new AXI4Arbiter(2))
+    axi_arb.io.in(0) <> core.io.d_axi
+    axi_arb.io.in(1) <> core.io.i_axi
+
+    axi_arb.io.out <> io
+}
+
 class YSYXTop extends Module {
     val io = IO(new Bundle {
         val master = new AXI4

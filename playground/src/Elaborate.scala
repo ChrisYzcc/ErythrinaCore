@@ -1,4 +1,4 @@
-import top.SimTop
+import top._
 object Elaborate extends App {
   val firtoolOptions = Array(
     "--lowering-options=" + List(
@@ -9,5 +9,14 @@ object Elaborate extends App {
       "locationInfoStyle=wrapInAtSquareBracket"
     ).reduce(_ + "," + _)
   )
-  circt.stage.ChiselStage.emitSystemVerilogFile(new SimTop, args, firtoolOptions)
+
+  val is_perf = args.contains("--perf")
+  val remainArgs = args.filterNot(_ == "--perf")
+
+  if (is_perf) {
+    circt.stage.ChiselStage.emitSystemVerilogFile(new PerfTop, remainArgs, firtoolOptions)
+  }
+  else {
+    circt.stage.ChiselStage.emitSystemVerilogFile(new SimTop, remainArgs, firtoolOptions)
+  }
 }

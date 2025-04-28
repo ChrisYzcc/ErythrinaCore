@@ -5,4 +5,5 @@ object Config {
     var RESETVEC = 0x30000000L
 
     var enablePerf = true
+    var isTiming = false
 }

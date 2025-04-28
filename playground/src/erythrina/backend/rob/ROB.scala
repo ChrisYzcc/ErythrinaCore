@@ -11,6 +11,7 @@ import utils.LookupTree
 import utils.{Halter, HaltOp}
 import utils.PerfDumpTrigger
 import utils.PerfCount
+import top.Config
 
 class ROB extends ErythModule {
     val io = IO(new Bundle {
@@ -208,22 +209,24 @@ class ROB extends ErythModule {
     }
 
     // halter
-    val last_entry = entries(bottom_ptr.value)
+    if (!Config.isTiming) {
+        val last_entry = entries(bottom_ptr.value)
 
-    val halter = Module(new Halter)
-    val halter_ebreak = last_entry.exception.exceptions.ebreak && last_entry.state.finished
-    val halter_load_af = last_entry.exception.exceptions.load_access_fault && last_entry.state.finished
-    val halter_store_af = last_entry.exception.exceptions.store_access_fault && last_entry.state.finished
+        val halter = Module(new Halter)
+        val halter_ebreak = last_entry.exception.exceptions.ebreak && last_entry.state.finished
+        val halter_load_af = last_entry.exception.exceptions.load_access_fault && last_entry.state.finished
+        val halter_store_af = last_entry.exception.exceptions.store_access_fault && last_entry.state.finished
 
-    halter.io.trigger := RegNext(halter_ebreak || halter_load_af || halter_store_af)
-    halter.io.reason := RegNext(Mux1H(Seq(
-        halter_ebreak -> HaltOp.ebreak,
-        halter_load_af -> HaltOp.load_af,
-        halter_store_af -> HaltOp.store_af,
-    )))
+        halter.io.trigger := RegNext(halter_ebreak || halter_load_af || halter_store_af)
+        halter.io.reason := RegNext(Mux1H(Seq(
+            halter_ebreak -> HaltOp.ebreak,
+            halter_load_af -> HaltOp.load_af,
+            halter_store_af -> HaltOp.store_af,
+        )))
 
-    PerfDumpTrigger("ebreak", halter_ebreak)
-
+        PerfDumpTrigger("ebreak", halter_ebreak)
+    }
+    
     /* -------------------- TopDown -------------------- */
     PerfCount("topdown_SlotsRetired", PopCount(io.difftest.map(_.valid)))
 }

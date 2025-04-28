@@ -1,9 +1,10 @@
-BUILD_DIR = ./build
+BUILD_DIR = $(shell pwd)/build
 
 PRJ = playground
 
 -include scripts/verilog.mk
 -include scripts/verilator.mk
+-include scripts/perf.mk
 
 IMG ?= 
 ARG ?= -w -t
