@@ -82,7 +82,6 @@ class IssueQueue(exu_num:Int, name:String, size:Int) extends ErythModule {
                 case (a, r) => a && r
             })
             relations(j) := age_cnt === (tot_ready_cnt - i.U) && tot_ready_cnt > i.U && ready_vec(j)
-            dontTouch(age_cnt)
         }
 
         assert(PopCount(relations) <= 1.U)
@@ -116,7 +115,6 @@ class IssueQueue(exu_num:Int, name:String, size:Int) extends ErythModule {
         handle_exu_idx(i) := PriorityEncoder(available_exu_list)
         
         val canHandle = available_exu_list.reduce(_||_)
-        dontTouch(canHandle)
         
         deq(handle_exu_idx(i)).valid := valid && canHandle
         deq(handle_exu_idx(i)).bits := entry

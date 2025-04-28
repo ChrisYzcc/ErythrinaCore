@@ -17,7 +17,6 @@ class StoreFwdUnit extends ErythModule {
     val stu_fwd = io.stu_fwd
 
     val fwds = VecInit(Seq(sq_fwd, stu_fwd).flatten)
-    dontTouch(fwds)
     val addr_hit_vec = fwds.map{
         case fwd =>
             fwd.valid && fwd.bits.addr === req.bits.addr
@@ -53,14 +52,10 @@ class StoreFwdUnit extends ErythModule {
         }
         val newest_idx = PriorityEncoder(is_newest_vec)
         assert(PopCount(is_newest_vec) <= 1.U, "More than one newest store forward detected")
-        dontTouch(newest_idx)
 
         final_mask_vec(mask_idx) := hit_cnt =/= 0.U
         final_byte_res_vec(mask_idx) := fwds(newest_idx).bits.data((mask_idx + 1) * XLEN / MASKLEN - 1, mask_idx * XLEN / MASKLEN)
     }
-
-    dontTouch(final_byte_res_vec)
-    dontTouch(final_mask_vec)
 
     resp := DontCare
     resp.mask := final_mask_vec.asUInt
