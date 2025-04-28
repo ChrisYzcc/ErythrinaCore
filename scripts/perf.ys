@@ -1,0 +1,6 @@
+read -sv ./build/rtl_perf/PerfTop.sv
+hierarchy -top PerfTop
+proc
+opt
+ltp
+show -format dot -prefix ./build/PerfTop -viewer none

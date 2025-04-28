@@ -11,4 +11,7 @@ perf: $(PERF_VERILOG_SRC)
 		CLK_FREQ_MHZ=3000 CLK_PORT_NAME=clock O=$(BUILD_DIR)\
 		RTL_FILES="$(PERF_VERILOG_SRC)"
 
+opt: $(PERF_VERILOG_SRC)
+	@yosys ./scripts/perf.ys > $(BUILD_DIR)/yosys.log
+	
 .PHONY: perf run-micro
