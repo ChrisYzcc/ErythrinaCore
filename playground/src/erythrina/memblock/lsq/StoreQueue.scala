@@ -97,6 +97,7 @@ class StoreQueue extends ErythModule {
         sq_fwd(i).bits.mask := entries(i).mask
         sq_fwd(i).bits.addr := entries(i).addr
         sq_fwd(i).bits.robPtr := entries(i).robPtr
+        sq_fwd(i).bits.committed := rob_commited(i)
     }
 
     // AXI Req

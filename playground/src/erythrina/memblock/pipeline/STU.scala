@@ -59,6 +59,7 @@ class STU extends ErythModule {
     st_fwd(0).bits.data := st_data
     st_fwd(0).bits.mask := st_mask
     st_fwd(0).bits.robPtr := req.bits.robPtr
+    st_fwd(0).bits.committed := false.B
 
     /* ----------------------- s1 -------------------------- */
     val s1_valid = RegNext(s0_valid) && !redirect.valid
@@ -85,4 +86,5 @@ class STU extends ErythModule {
     st_fwd(1).bits.data := s1_st_data
     st_fwd(1).bits.mask := s1_st_mask
     st_fwd(1).bits.robPtr := cmt_instBlk.robPtr
+    st_fwd(1).bits.committed := false.B
 }

@@ -6,4 +6,6 @@ object Config {
 
     var enablePerf = true
     var isTiming = false
+
+    var ICacheRange = (0xa0000000L, 0xbfffffffL)
 }

@@ -39,19 +39,9 @@ class LDU extends ErythModule {
     val (req, axi) = (io.req, io.axi)
     val redirect = io.redirect
 
-    val axi_req_inflight_cnt = RegInit(0.U(2.W))
-    val (ar_fire, r_fire) = (axi.ar.fire, axi.r.fire)
-    when (ar_fire && !r_fire) {
-        axi_req_inflight_cnt := axi_req_inflight_cnt + 1.U
-    }
-    when (!ar_fire && r_fire) {
-        axi_req_inflight_cnt := axi_req_inflight_cnt - 1.U
-    }
-
-    val r_has_err = Wire(Bool())
-
-    val sIDLE :: sREQ :: sRECV :: Nil = Enum(3)
+    val sIDLE :: sREQ :: sRECV :: sDROP :: Nil = Enum(4)
     val state = RegInit(sIDLE)
+
     switch (state) {
         is (sIDLE) {
             when (req.fire && !redirect.valid) {
@@ -66,7 +56,14 @@ class LDU extends ErythModule {
             }
         }
         is (sRECV) {
-            when (axi.r.fire && axi_req_inflight_cnt === 1.U || r_has_err) {
+            when (axi.r.fire) {
+                state := sIDLE
+            }.elsewhen(redirect.valid) {
+                state := sDROP
+            }
+        }
+        is (sDROP) {
+            when (axi.r.fire) {
                 state := sIDLE
             }
         }
@@ -91,8 +88,6 @@ class LDU extends ErythModule {
 
     // sRECV
     val recv_task = RegEnable(to_recv_task, 0.U.asTypeOf(new InstExInfo), axi.ar.fire)
-
-    axi.r.ready := state === sRECV
 
     val recv_addr = recv_task.addr
 
@@ -153,16 +148,18 @@ class LDU extends ErythModule {
     ))
     fwd_query.bits.mask := mask
 
-    r_has_err := recv_task.exception.exceptions.load_access_fault
+    val r_has_err = recv_task.exception.exceptions.load_access_fault
 
-    // Cmt
+    axi.r.ready := state === sRECV || state === sDROP
+
+    // Commit
     val cmt_instBlk = WireInit(recv_task)
     cmt_instBlk.res := res
     cmt_instBlk.mask := mask
     cmt_instBlk.addr := Cat(recv_addr(XLEN - 1, 2), 0.U(2.W))
     cmt_instBlk.state.finished := true.B
 
-    io.ldu_cmt.valid := (axi.r.fire && axi_req_inflight_cnt === 1.U || r_has_err) && !redirect.valid
+    io.ldu_cmt.valid := (axi.r.fire && state === sRECV || r_has_err) && !redirect.valid
     io.ldu_cmt.bits := cmt_instBlk
     
     io.rf_write.valid := io.ldu_cmt.valid && io.ldu_cmt.bits.rf_wen

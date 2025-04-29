@@ -10,4 +10,5 @@ class StoreFwdBundle extends ErythBundle {
     val data = UInt(XLEN.W)
     val mask = UInt(MASKLEN.W)
     val robPtr = new ROBPtr
+    val committed = Bool()   // has been committed but not written back
 }

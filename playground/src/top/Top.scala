@@ -10,6 +10,7 @@ import utils.PerfBox
 
 class SimTop extends Module {
     Config.RESETVEC = 0x80000000L
+    Config.ICacheRange = (0x80000000L, 0x88000000L)
 
     val core = Module(new ErythrinaCore)
 

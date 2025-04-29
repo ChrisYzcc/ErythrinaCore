@@ -7,7 +7,7 @@ import erythrina.frontend.Frontend
 import erythrina.backend.Backend
 import erythrina.memblock.Memblock
 import difftest.DifftestInfos
-import erythrina.frontend.icache.ICacheDummy
+import erythrina.frontend.icache._
 
 abstract class ErythBundle extends Bundle with HasErythCoreParams
 
@@ -26,7 +26,7 @@ class ErythrinaCore extends ErythModule {
     val backend = Module(new Backend)
     val memblock = Module(new Memblock)
 
-    val icache = Module(new ICacheDummy)
+    val icache = Module(new ICache)
     icache.io.req <> frontend.io.icache_req
     icache.io.rsp <> frontend.io.icache_rsp
     icache.io.axi <> i_axi
