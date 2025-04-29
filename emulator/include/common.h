@@ -17,5 +17,9 @@ static const char FontBlue[]    = "\033[34m";
 static const char Restore[]     = "\033[0m";
 
 extern int status;
+extern uint32_t uptime();
+
+#define WAIT_INTERVAL 5
+#define SLOT_SIZE 2
 
 #endif

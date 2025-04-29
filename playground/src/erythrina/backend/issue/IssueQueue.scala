@@ -33,17 +33,22 @@ class IssueQueue(exu_num:Int, name:String, size:Int) extends ErythModule {
     val free_vec = valids.map(!_)
     val free_cnt = PopCount(free_vec)
     val enq_cnt = PopCount(enq.map(_.valid))
+    val free_idx = Wire(Vec(DispatchWidth, UInt(log2Ceil(size).W)))
+    val free_v = Wire(Vec(DispatchWidth, Bool()))
     val alloc_idx = Wire(Vec(DispatchWidth, UInt(log2Ceil(size).W)))
     for (i <- 0 until DispatchWidth) {
         val cur_free_vec = if (i == 0) free_vec else free_vec.zipWithIndex.map{
-            case (v, idx) => {
+            case (f, idx) => {
                 val prev_match = alloc_idx.take(i).map(_ === idx.U)
-                v && !prev_match.reduce(_||_)
+                f && !prev_match.reduce(_||_)
             }
         }
-        alloc_idx(i) := PriorityEncoder(cur_free_vec)
+        free_idx(i) := PriorityEncoder(cur_free_vec)
+        free_v(i) := cur_free_vec.reduce(_||_)
 
-        enq(i).ready := free_cnt >= enq_cnt
+        val alloc_ptr_idx = PopCount(enq.take(i).map(_.valid))
+        alloc_idx(i) := free_idx(alloc_ptr_idx)
+        enq(i).ready := !valids(alloc_idx(i)) && free_v(alloc_ptr_idx) && free_cnt >= enq_cnt
         when (enq(i).fire) {
             entries(alloc_idx(i)) := enq(i).bits
             valids(alloc_idx(i)) := true.B

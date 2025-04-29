@@ -58,7 +58,7 @@ class StoreQueue extends ErythModule {
 
         needAlloc(i) := alloc_req(i).valid
         canAlloc(i) := needAlloc(i) && ptr >= deqPtrExt
-        when (all_canAlloc) {
+        when (all_canAlloc && canAlloc(i)) {
             entries(ptr.value) := alloc_req(i).bits
             valids(ptr.value) := true.B
             stu_finished(ptr.value) := false.B

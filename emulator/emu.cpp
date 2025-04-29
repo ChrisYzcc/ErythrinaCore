@@ -4,6 +4,7 @@
 #include "device.h"
 #include "difftest.h"
 #include "isa.h"
+#include "lightsss.h"
 #include "trace.h"
 #include "svdpi.h"
 #include "verilated.h"
@@ -13,6 +14,7 @@
 #include <cstddef>
 #include <memory.h>
 #include <csignal>
+#include <iostream>
 
 void handle_interrupt(int signum) {
     if (signum == SIGINT) {
@@ -29,12 +31,13 @@ EmuArgs parse_args(int argc, const char *argv[]) {
         {"dump-wave", no_argument, NULL, 'w'},
         {"dump-trace", no_argument, NULL, 't'},
         {"difftest", required_argument, NULL, 'd'},
+        {"fork-debug", no_argument, NULL, 'f'},
         {0, 0, NULL, 0}
     };
 
     int opt;
 
-    while ((opt = getopt_long(argc, (char *const *)argv, "-c:i:d:wt", table, NULL)) != -1) {
+    while ((opt = getopt_long(argc, (char *const *)argv, "-c:i:d:wtf", table, NULL)) != -1) {
         switch (opt) {
             case 'c':
                 args.max_cycles = strtoull(optarg, NULL, 0);
@@ -53,6 +56,10 @@ EmuArgs parse_args(int argc, const char *argv[]) {
                 diff_ref_so = optarg;
                 break;
             }
+            case 'f':{
+                args.enable_fork = true;
+                break;
+            }
             case 1:{
                 args.image = optarg;
                 break;
@@ -67,6 +74,8 @@ EmuArgs parse_args(int argc, const char *argv[]) {
                 exit(0);
         }
     }
+
+    assert(!(args.enable_fork && args.dump_wave));
     return args;
 }
 
@@ -77,8 +86,14 @@ Emulator::Emulator(int argc, const char *argv[])
     args = parse_args(argc, argv);
 
     pc_rstvec = PC_RSTVEC;
+
+    start_time = uptime();
     
     printf("===================== EMU =====================\n");
+
+    // arch state
+    memset(&npc_arch_sim_state, 0, sizeof(CPUState));
+    memset(&npc_arch_real_state, 0, sizeof(CPUState));
 
     // context
     contx = new VerilatedContext;
@@ -91,11 +106,16 @@ Emulator::Emulator(int argc, const char *argv[])
 
     // wave
     if (args.dump_wave) {
-        printf("[Info] Enable waveform dump.\n");
         Verilated::traceEverOn(true);
         tfp = new VerilatedFstC;
         dut_ptr->trace(tfp, 99);
         tfp->open("waveform");
+    }
+
+    // lightSSS
+    if (args.enable_fork) {
+        printf("[Info] Enable fork debug\n");
+        lightsss = new LightSSS;
     }
 
     // memory
@@ -144,6 +164,16 @@ Emulator::~Emulator() {
     if (args.dump_wave) {
         tfp->close();
         delete tfp;
+    }
+
+    if (args.enable_fork && !is_fork_child()) {
+        bool need_wakeup = state == EMU_HIT_BAD;
+        if (need_wakeup) {
+            lightsss->wakeup_child(cycles);
+        } else {
+            lightsss->do_clear();
+        }
+        delete lightsss;
     }
     
     if (state == EMU_HIT_BAD) {
@@ -425,6 +455,20 @@ void Emulator::run() {
             break;
         }
 
+        if (args.enable_fork) {
+            static bool have_init_fork = false;
+            uint32_t timer = uptime();
+            if (((timer - lasttime_snapshot > args.fork_interval) || !have_init_fork) && !is_fork_child()) {
+                have_init_fork = true;
+                lasttime_snapshot = timer;
+                switch (lightsss->do_fork()) {
+                    case FORK_ERROR: assert(0);
+                    case FORK_CHILD: fork_child_init();
+                    default: break;
+                }
+            }
+        }
+
         if (inst_count >= args.max_inst) {
             trap(TRAP_HALT_HIT_INSTR_BOUND, 0);
             break;
@@ -436,5 +480,26 @@ void Emulator::run() {
         }
 
         inst_count += step();
+
+        if (args.enable_fork && is_fork_child() && cycles != 0) {
+            if (cycles == lightsss->get_end_cycles()) {
+                printf("[Info] checkpoint has reached the main process abort point: %lu\n", cycles);
+                trap(TRAP_HALT_HIT_CYCLE_BOUND, 0);
+                break;
+            }
+        }
     }
+}
+
+void Emulator::fork_child_init() {
+    printf("[Info] the oldest checkpoint start to dump wave ...\n");
+    dut_ptr->atClone();
+
+    Verilated::traceEverOn(true);
+    tfp = new VerilatedFstC;
+    dut_ptr->trace(tfp, 99);
+    tfp->open("waveform");
+
+    args.dump_wave = true;
+    args.dump_trace = false;
 }

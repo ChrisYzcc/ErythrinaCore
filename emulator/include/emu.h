@@ -5,6 +5,7 @@
 #include "VSimTop.h"
 #include "isa.h"
 #include "verilated.h"
+#include "lightsss.h"
 
 #define DUT_TOP VSimTop
 
@@ -40,12 +41,14 @@ struct EmuArgs {
     uint64_t reset_cycles = 30;
     uint64_t max_cycles = -1;
     uint64_t max_inst = -1;
+    uint64_t fork_interval = 5000; // default: 5 seconds
 
     char *image = nullptr;
 
     bool dump_wave = false;
     bool enable_diff = true;
     bool dump_trace = false;
+    bool enable_fork = false;
 };
 
 struct MicroArchState {
@@ -58,11 +61,14 @@ private:
     DUT_TOP *dut_ptr;
     VerilatedFstC *tfp;
     VerilatedContext *contx;
+    LightSSS *lightsss = NULL;
+
     EmuArgs args;
     EmuState state;
     uint64_t cycles;
     uint64_t inst_count;
 
+    uint32_t lasttime_snapshot = 0;
     uint64_t nocmt_cycles;
 
     CPUState npc_arch_sim_state;    // deduct from commit info
@@ -71,6 +77,14 @@ private:
 
     inline void reset_ncycles(size_t cycles);
     inline void single_cycle();
+
+    inline bool is_fork_child() {
+        return lightsss->is_child();
+    }
+
+    void fork_child_init();
+
+    uint32_t start_time;
 
 public:
     Emulator(int argc, const char *argv[]);

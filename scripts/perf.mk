@@ -1,5 +1,5 @@
 PERF_IMG = $(NPC_HOME)/ready-to-run/microbench-riscv32e-npc.bin
-PERF_ARG =
+PERF_ARG = -t -f
 
 run-micro: $(SIM_TARGET)
 	$(call git_commit, "run microbench")

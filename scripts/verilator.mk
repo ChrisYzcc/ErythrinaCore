@@ -27,7 +27,7 @@ endif
 
 SIM_TARGET = $(OBJ_DIR)/V$(TOP_NAME)
 
-$(SIM_TARGET): $(SIM_VERILOG_SRC)
+$(SIM_TARGET): $(SIM_VERILOG_SRC) $(EMU_CSRC)
 	mkdir -p $(OBJ_DIR)
 	$(VERILATOR) $(VFLG) --Mdir $(OBJ_DIR) --top-module $(TOP_NAME) $(VSRCS) $(EMU_CSRC) $(DRAM_SRC)
 
