@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 import erythrina.ErythModule
 import bus.axi4.AXI4
+import utils.PerfCount
 
 class Fetcher extends ErythModule {
     val io = IO(new Bundle {
@@ -93,4 +94,7 @@ class Fetcher extends ErythModule {
     axi.w <> DontCare
     axi.aw <> DontCare
     axi.b <> DontCare
+
+    /* ---------------- Performance ----------------  */
+    PerfCount("icache_miss_penalty_tot", (state === sREQ || state === sRECV || state === sRSP))
 }

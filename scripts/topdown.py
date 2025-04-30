@@ -28,6 +28,9 @@ with open(topdown_file, "r") as f:
     topdown_res["Retiring"] = topdown["SlotsRetired"] / topdown["TotalSlots"]
     topdown_res["BackendBound"] = 1 - topdown_res["FrontendBound"] - topdown_res["BadSpeculation"] - topdown_res["Retiring"]
 
+    topdown_res["FrontendBound_Miss"] = topdown["FetchMissBubbles"] / topdown["FetchBubbles"]
+    topdown_res["FrontendBound_Unalign"] = topdown["FetchUnalignBubbles"] / topdown["FetchBubbles"]
+
 with open(topdown_res_file, "w") as f:
     for key, value in topdown_res.items():
         f.write(f"{key}: {value:.2%}\n")

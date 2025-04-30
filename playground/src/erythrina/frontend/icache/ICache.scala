@@ -288,4 +288,12 @@ class ICache extends ErythModule {
     PerfCount("icache_hit", s1_valid && hit && s1_inrange && rsp.valid)
     PerfCount("icache_miss", s1_valid && !hit && s1_inrange && rsp.valid)
     PerfCount("icache_nc", s1_valid && !s1_inrange && rsp.valid)
+
+    for (i <- 0 until ICacheParams.sets) {
+        PerfCount(s"icache_set$i/_hit", s1_valid && hit && s1_inrange && rsp.valid && s1_idx === i.U)
+        PerfCount(s"icache_set$i/_miss", s1_valid && !hit && s1_inrange && rsp.valid && s1_idx === i.U)
+        for (j <- 0 until ICacheParams.ways) {
+            PerfCount(s"icache_set$i/_way$j/_hit", s1_valid && hit && s1_inrange && rsp.valid && s1_idx === i.U && hit_way === j.U)
+        }
+    }
 }

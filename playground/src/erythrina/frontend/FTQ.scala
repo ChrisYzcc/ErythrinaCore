@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 import erythrina.ErythModule
 import utils.CircularQueuePtr
+import utils.PerfCount
 
 class FTQ extends ErythModule {
     val io = IO(new Bundle {
@@ -93,5 +94,8 @@ class FTQ extends ErythModule {
             valids(i) := false.B
         }
     }
-}
 
+    /* -------------------- TopDown -------------------- */
+    PerfCount("topdown_FetchMissBubbles", Mux(fetch_req.valid && !fetch_resp.valid, FetchWidth.U, 0.U))
+    PerfCount("topdown_FetchUnalignBubbles", Mux(fetch_req.valid && fetch_resp.valid, PopCount(fetch_resp.bits.instVec.map(!_.valid)), 0.U))
+}
