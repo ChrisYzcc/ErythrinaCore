@@ -81,6 +81,7 @@ class LDU extends ErythModule {
     axi.ar.valid := state === sREQ && !redirect.valid && !addr_err
     axi.ar.bits := 0.U.asTypeOf(axi.ar.bits)
     axi.ar.bits.addr := req_addr
+    axi.ar.bits.size := "b010".U    // 4 bytes per transfer
 
     val to_recv_task = WireInit(req_task)
     to_recv_task.addr := addr

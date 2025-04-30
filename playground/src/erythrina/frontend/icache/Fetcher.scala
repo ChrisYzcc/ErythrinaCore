@@ -6,6 +6,7 @@ import erythrina.ErythModule
 import bus.axi4.AXI4
 import utils.PerfCount
 import erythrina.frontend.icache.ICacheParams._
+import bus.axi4.AXI4Params
 
 class Fetcher extends ErythModule {
     val io = IO(new Bundle {
@@ -18,7 +19,6 @@ class Fetcher extends ErythModule {
     val axi = io.axi
     val (req, rsp) = (io.req, io.rsp)
 
-    val req_num = RegInit(0.U(4.W))
     val req_addr = RegInit(0.U(XLEN.W))
     val rsp_data_ptr = RegInit(0.U(log2Ceil(ICacheParams.CachelineSize).W))
     val rsp_data_vec = RegInit(VecInit(Seq.fill(ICacheParams.CachelineSize / 4)(0.U(XLEN.W))))
@@ -37,12 +37,8 @@ class Fetcher extends ErythModule {
             }
         }
         is (sRECV) {
-            when (axi.r.fire) {
-                when (req_num === 0.U) {
-                    state := sRSP
-                }.otherwise {
-                    state := sREQ
-                }
+            when (axi.r.fire && axi.r.bits.last) {
+                state := sRSP
             }
         }
         is (sRSP) {
@@ -55,15 +51,6 @@ class Fetcher extends ErythModule {
     // req_addr
     when (req.fire) {
         req_addr := req.bits
-    }.elsewhen(axi.ar.fire) {
-        req_addr := req_addr + 4.U
-    }
-
-    // req_num
-    when (req.fire) {
-        req_num := (ICacheParams.CachelineSize / 4).U
-    }.elsewhen(axi.ar.fire) {
-        req_num := req_num - 1.U
     }
 
     // rsp_data_ptr
@@ -82,6 +69,9 @@ class Fetcher extends ErythModule {
     axi.ar.valid := state === sREQ
     axi.ar.bits := 0.U.asTypeOf(axi.ar.bits)
     axi.ar.bits.addr := req_addr
+    axi.ar.bits.size := "b010".U    // 4 bytes per transfer
+    axi.ar.bits.burst := AXI4Params.BURST_INCR
+    axi.ar.bits.len := ((ICacheParams.CachelineSize / 4) - 1).U
 
     axi.r.ready := state === sRECV
 

@@ -7,7 +7,7 @@ PRJ = playground
 -include scripts/perf.mk
 
 IMG ?= 
-ARG ?= -f -t
+ARG ?= -w -t
 DIFF_SO ?= $(NEMU_HOME)/build/riscv32-nemu-interpreter-so
 
 clean:

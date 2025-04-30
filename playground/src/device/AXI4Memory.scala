@@ -179,31 +179,51 @@ class AXI4Memory extends Module {
 		}
 		is (rRESP) {
 			when (axi.r.fire) {
-				rState := rIDLE
+				when (axi.r.bits.last) {
+					rState := rIDLE
+				} .otherwise {
+					rState := rWAIT_DRAM
+				}
 			}
 		}
 	}
 
-	val rd_task = RegInit(0.U.asTypeOf(axi.ar.bits))
+	val rd_addr = RegInit(0.U(AXI4Params.addrBits.W))
+	val rd_id = RegInit(0.U(AXI4Params.idBits.W))
+
 	when (axi.ar.fire) {
-		rd_task := axi.ar.bits
+		rd_addr := axi.ar.bits.addr
+		rd_id := axi.ar.bits.id
+	}.elsewhen(rState === rREQ && ddr_rd_rsp_valid) {
+		rd_addr := rd_addr + 4.U
+	}
+
+	val rd_len = RegInit(0.U(AXI4Params.lenBits.W))
+	when (axi.ar.fire) {
+		rd_len := axi.ar.bits.len
+	}.elsewhen(axi.r.fire) {
+		rd_len := rd_len - 1.U
 	}
 
 	// AR
 	axi.ar.ready := rState === rIDLE
 
+	assert(!axi.ar.valid || axi.ar.bits.len <= 7.U)
+	assert(!axi.ar.valid || axi.ar.bits.size === "b010".U)
+
 	// DDR
-	ddr_rd_req_ready := readRequest(rState === rWAIT_DRAM, rd_task.addr, rd_task.id)
+	ddr_rd_req_ready := readRequest(rState === rWAIT_DRAM, rd_addr, rd_id)
 	ddr_rd_rsp_valid := readResponse(rState === rREQ)._1
 
 	// Get Data
-	val rd_data = readData(rState === rREQ && ddr_rd_rsp_valid, rd_task.addr)
+	val rd_data = readData(rState === rREQ && ddr_rd_rsp_valid, rd_addr)
 
 	// R
 	axi.r.valid := rState === rRESP
 	axi.r.bits := 0.U.asTypeOf(axi.r.bits)
-	axi.r.bits.id := rd_task.id
+	axi.r.bits.id := rd_id
 	axi.r.bits.data := rd_data
+	axi.r.bits.last := rd_len === 0.U
 
 	/* --------------------- Write --------------------- */
 	val ddr_wr_req_ready = Wire(Bool())
