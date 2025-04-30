@@ -5,6 +5,7 @@ import chisel3.util._
 import erythrina.ErythModule
 import bus.axi4.AXI4
 import utils.PerfCount
+import erythrina.frontend.icache.ICacheParams._
 
 class Fetcher extends ErythModule {
     val io = IO(new Bundle {

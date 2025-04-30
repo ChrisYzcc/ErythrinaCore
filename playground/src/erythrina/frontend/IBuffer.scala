@@ -3,7 +3,7 @@ package erythrina.frontend
 import chisel3._
 import chisel3.util._
 import erythrina.ErythModule
-import erythrina.frontend.icache.ICacheParams.get_cacheline_blk_offset
+import erythrina.frontend.icache.ICacheParams._
 
 class IBuffer extends ErythModule {
     val io = IO(new Bundle {

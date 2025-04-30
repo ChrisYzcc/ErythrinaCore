@@ -5,64 +5,11 @@ import chisel3.util._
 import bus.axi4._
 import erythrina.{ErythModule, ErythBundle}
 import erythrina.frontend.InstFetchBlock
-import erythrina.frontend.icache.ICacheParams.get_cacheline_blk_offset
+import erythrina.frontend.icache.ICacheParams._
 import top.Config._
 import utils.PLRU
 import utils.PerfCount
 
-object ICacheParams {
-    val CacheableRange = ICacheRange
-
-    val CachelineSize = 16  // 16 Bytes
-
-    def get_cacheline_offset(addr: UInt): UInt = {
-        val offset = addr(log2Ceil(CachelineSize) - 1, 0)
-        offset
-    }
-
-    def get_cacheline_blk_offset(addr: UInt): UInt = {
-        val offset = addr(log2Ceil(CachelineSize) - 1, 2)
-        offset
-    }
-
-    /*  
-        ------------------------------------------
-        way0
-        |   v   |   tag   |    data    |
-        ------------------------------------------
-        way1
-        ...
-        ------------------------------------------
-        way2
-        ...
-        ------------------------------------------
-        way3
-        ...
-        ------------------------------------------
-
-        Total: 4 * 8 * 16 = 512 Bytes
-
-        Index = log2(sets) = 3
-        Offset = log2(data) = 4
-        Tag = XLEN - Index - Offset = 32 - 3 - 4 = 25 
-    */
-
-    // cache params
-    var ways = 4
-    var sets = 16
-
-    def TagLen = XLEN - log2Ceil(sets) - log2Ceil(CachelineSize)
-
-    def get_idx(addr: UInt): UInt = {
-        val idx = addr(log2Ceil(sets) + log2Ceil(CachelineSize) - 1, log2Ceil(CachelineSize))
-        idx
-    }
-
-    def get_tag(addr: UInt): UInt = {
-        val tag = addr(XLEN - 1, log2Ceil(sets) + log2Ceil(CachelineSize))
-        tag
-    }
-}
 
 class ICacheDummy extends ErythModule {
     val io = IO(new Bundle {
@@ -161,6 +108,9 @@ class ICache extends ErythModule {
 
         val axi = new AXI4
     })
+
+    // Print ICache Config
+    println(s"ICache: sets = ${ICacheParams.sets}, ways = ${ICacheParams.ways}, cacheline = ${ICacheParams.CachelineSize} bytes, tot = ${ICacheParams.sets * ICacheParams.ways * ICacheParams.CachelineSize} bytes")
 
     val axi = io.axi
     val (req, rsp) = (io.req, io.rsp)

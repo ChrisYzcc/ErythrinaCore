@@ -6,6 +6,8 @@ import erythrina.ErythModule
 import erythrina.backend.Redirect
 import erythrina.ErythBundle
 
+import erythrina.frontend.icache.ICacheParams._
+
 class BPUTask extends ErythBundle {
     val base_pc = UInt(XLEN.W)
     val is_redirect = Bool()

@@ -8,6 +8,8 @@ import utils.StageConnect
 import erythrina.backend.{InstExInfo, Redirect}
 import utils.PerfCount
 
+import erythrina.frontend.icache.ICacheParams._
+
 // Frontend Top
 class Frontend extends ErythModule {
     val io = IO(new Bundle {
