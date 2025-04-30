@@ -9,6 +9,7 @@ import erythrina.backend.{InstExInfo, Redirect}
 import utils.PerfCount
 
 import erythrina.frontend.icache.ICacheParams._
+import erythrina.frontend.bpu._
 
 // Frontend Top
 class Frontend extends ErythModule {
