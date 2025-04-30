@@ -7,6 +7,7 @@ import erythrina.frontend.FuType
 import erythrina.backend.InstExInfo
 import utils.LookupTreeDefault
 import erythrina.backend.Redirect
+import utils.PerfCount
 
 class EXUInfo extends ErythBundle {
     val busy = Bool()
@@ -75,6 +76,10 @@ class EXU0 extends BaseEXU {
     val bru_target = bru.io.target
     val bru_rd_res = bru.io.rd_res
 
+    val direction_wrong = bru_taken =/= req_instBlk.bpu_taken
+    val target_wrong = !direction_wrong && (bru_target =/= req_instBlk.bpu_target)
+    val bru_mispredict = direction_wrong || target_wrong
+
     csr.io.valid := req.valid && req.bits.fuType === FuType.csr
     csr.io.pc := req_instBlk.pc
     csr.io.imm := req_instBlk.imm
@@ -92,7 +97,7 @@ class EXU0 extends BaseEXU {
     ))
 
     cmt_instBlk.state.finished := true.B
-    cmt_instBlk.exception.bpu_mispredict := bru_taken =/= req_instBlk.bpu_taken && req_instBlk.fuType === FuType.bru
+    cmt_instBlk.exception.bpu_mispredict := bru_mispredict && req_instBlk.fuType === FuType.bru
     cmt_instBlk.exception.ret := csr.io.ret && req_instBlk.fuType === FuType.csr
     cmt_instBlk.exception.exceptions.ebreak := csr.io.ebreak && req_instBlk.fuType === FuType.csr
     cmt_instBlk.exception.exceptions.ecall_m := csr.io.ecall && req_instBlk.fuType === FuType.csr
@@ -100,6 +105,9 @@ class EXU0 extends BaseEXU {
     cmt.valid := RegNext(req.valid) && !redirect.valid && !RegNext(redirect.valid)
     cmt.bits := RegNext(cmt_instBlk)
 
+    /* --------------- Perf --------------- */
+    PerfCount("bpu_wrong", cmt.valid && cmt.bits.exception.bpu_mispredict && cmt.bits.fuType === FuType.bru)
+    PerfCount("bpu_correct", cmt.valid && !cmt.bits.exception.bpu_mispredict && cmt.bits.fuType === FuType.bru)
 }
 
 // exu1: alu

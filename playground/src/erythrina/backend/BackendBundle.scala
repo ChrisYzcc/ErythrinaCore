@@ -99,6 +99,7 @@ class InstExInfo extends ErythBundle {
         this.pc := inst_info.pc
 
         this.bpu_taken := inst_info.bpu_taken
+        this.bpu_target := inst_info.bpu_target
     }
 
     def isStroe = {

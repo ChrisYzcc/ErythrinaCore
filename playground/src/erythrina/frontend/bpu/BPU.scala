@@ -54,6 +54,7 @@ class BPU extends ErythModule {
     for (i <- 0 until FetchWidth) {
         enq_blk.instVec(i).pc := s1_pc + (i.U << 2)
         enq_blk.instVec(i).bpu_taken := false.B
+        enq_blk.instVec(i).bpu_target := s1_pc + (i.U << 2) + 4.U
 
         enq_blk.instVec(i).valid := (s1_pc + (i.U << 2))(XLEN - 1, log2Ceil(CachelineSize)) === base_cacheline
     }

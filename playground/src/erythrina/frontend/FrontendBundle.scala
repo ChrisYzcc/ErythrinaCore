@@ -10,6 +10,7 @@ class InstInfo extends ErythBundle {
     val pc      = UInt(XLEN.W)
 
     val bpu_taken = Bool()      // BPU says: let's take the branch!
+    val bpu_target = UInt(XLEN.W) // BPU says: branch target address
 }
 
 class InstFetchBlock extends ErythBundle {
