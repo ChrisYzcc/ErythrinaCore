@@ -1,4 +1,5 @@
-PERF_IMG = $(NPC_HOME)/ready-to-run/microbench-riscv32e-npc.bin
+LEVEL ?= test
+PERF_IMG = $(NPC_HOME)/ready-to-run/microbench-riscv32e-npc-$(LEVEL).bin
 PERF_ARG = -t -f
 
 run-micro: $(SIM_TARGET)
