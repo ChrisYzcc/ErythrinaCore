@@ -96,6 +96,22 @@ class FTQ extends ErythModule {
     }
 
     /* -------------------- TopDown -------------------- */
-    PerfCount("topdown_FetchMissBubbles", Mux(fetch_req.valid && !fetch_resp.valid, FetchWidth.U, 0.U))
-    PerfCount("topdown_FetchUnalignBubbles", Mux(fetch_req.valid && fetch_resp.valid, PopCount(fetch_resp.bits.instVec.map(!_.valid)), 0.U))
+    val sWORK :: sRECOVERY :: Nil = Enum(2)
+    val state = RegInit(sWORK)
+    switch (state) {
+        is (sWORK) {
+            when (io.flush) {
+                state := sRECOVERY
+            }
+        }
+        is (sRECOVERY) {
+            when (fetch_req.valid && fetch_resp.valid) {
+                state := sWORK
+            }
+        }
+    }
+    PerfCount("topdown_FetchMissBubbles", Mux(fetch_req.valid && !fetch_resp.valid && state === sWORK, FetchWidth.U, 0.U))
+    PerfCount("topdown_FetchUnalignBubbles", Mux(fetch_req.valid && fetch_resp.valid && state === sWORK, PopCount(fetch_resp.bits.instVec.map(!_.valid)), 0.U))
+
+    PerfCount("topdown_RedirectResteerBubbles", Mux((state === sRECOVERY || io.flush), FetchWidth.U, 0.U))
 }

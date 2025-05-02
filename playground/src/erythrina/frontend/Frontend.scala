@@ -54,6 +54,5 @@ class Frontend extends ErythModule {
     PerfCount("topdown_TotalSlots", DecodeWidth.U)
     PerfCount("topdown_SlotsIssued", Mux(io.to_backend.rename_req.fire, PopCount(io.to_backend.rename_req.bits.map(_.valid)), 0.U))
     val fetch_bubble_slots = Mux(io.to_backend.rename_req.valid, PopCount(io.to_backend.rename_req.bits.map(!_.valid)), DecodeWidth.U)
-    PerfCount("topdown_FetchBubbles", Mux(io.to_backend.rename_req.ready && !(io.from_backend.flush || io.from_backend.redirect.valid), fetch_bubble_slots, 0.U))
-    PerfCount("topdown_RecoveryBubbles", Mux((io.from_backend.flush || io.from_backend.redirect.valid) && io.to_backend.rename_req.ready, DecodeWidth.U, 0.U))
+    PerfCount("topdown_FetchBubbles", Mux(io.to_backend.rename_req.ready, fetch_bubble_slots, 0.U))
 }
