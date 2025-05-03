@@ -15,6 +15,8 @@ class BPU extends ErythModule {
         val redirect = Flipped(ValidIO(new Redirect))
 
         val ftq_enq_req = DecoupledIO(new InstFetchBlock)        // to FTQ, enq
+
+        val btb_upt = Flipped(Vec(CommitWidth, ValidIO(new BTBUpt))) // from FTQ, btb update
     })
 
     val s0_valid = Wire(Bool())
@@ -30,6 +32,9 @@ class BPU extends ErythModule {
         rst_issued := true.B
     }
 
+    val btb = Module(new BTB)
+    btb.io.upt <> io.btb_upt
+
     /* -------------- s0 -------------- */
     s0_valid := (s1_valid || io.redirect.valid || !rst_issued) && !io.flush && !reset.asBool
 
@@ -39,6 +44,12 @@ class BPU extends ErythModule {
                     io.redirect.bits.npc,
                     s1_npc
                 ))
+
+    // request btb
+    for (i <- 0 until FetchWidth) {
+        btb.io.req(i).valid := s0_valid
+        btb.io.req(i).bits.pc := s0_pc + (i.U << 2)
+    }
 
     /* -------------- s1 -------------- */
     when (s0_valid && s1_ready) {
@@ -51,19 +62,31 @@ class BPU extends ErythModule {
 
     val base_cacheline = s1_pc(XLEN - 1, log2Ceil(CachelineSize))
     val enq_blk = WireInit(0.U.asTypeOf(new InstFetchBlock))
+
+    val s_npc_vec = Wire(Vec(FetchWidth, UInt(XLEN.W)))
+    val d_npc_vec = Wire(Vec(FetchWidth, UInt(XLEN.W)))
+    val d_npc_v_vec = Wire(Vec(FetchWidth, Bool()))
+    for (i <- 0 until FetchWidth) {
+        s_npc_vec(i) := s1_pc + (i.U << 2) + 4.U
+        d_npc_vec(i) := btb.io.rsp(i).bits.target
+        d_npc_v_vec(i) := btb.io.rsp(i).valid && btb.io.rsp(i).bits.taken
+    }
+
     for (i <- 0 until FetchWidth) {
         enq_blk.instVec(i).pc := s1_pc + (i.U << 2)
-        enq_blk.instVec(i).bpu_taken := false.B
-        enq_blk.instVec(i).bpu_target := s1_pc + (i.U << 2) + 4.U
-
-        enq_blk.instVec(i).valid := (s1_pc + (i.U << 2))(XLEN - 1, log2Ceil(CachelineSize)) === base_cacheline
+        enq_blk.instVec(i).bpu_taken := d_npc_v_vec(i)
+        enq_blk.instVec(i).bpu_target := Mux(d_npc_v_vec(i), d_npc_vec(i), s_npc_vec(i))
+        
+        val prev_taken = if (i == 0) false.B else d_npc_v_vec.take(i).reduce(_ || _)
+        val same_cacheline = (s1_pc + (i.U << 2))(XLEN - 1, log2Ceil(CachelineSize)) === base_cacheline
+        enq_blk.instVec(i).valid := same_cacheline && !prev_taken
     }
 
     // generate npc
     val npc_vec = Wire(Vec(FetchWidth, UInt(XLEN.W)))
     val npc_v_vec = Wire(Vec(FetchWidth, Bool()))
     for (i <- 0 until FetchWidth) {
-        npc_vec(i) := enq_blk.instVec(i).pc + 4.U
+        npc_vec(i) := Mux(d_npc_v_vec(i), d_npc_vec(i), s_npc_vec(i))
         npc_v_vec(i) := enq_blk.instVec(i).valid
     }
 

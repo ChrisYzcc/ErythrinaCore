@@ -11,6 +11,8 @@ class AXI4Arbiter(n:Int) extends Module {
 
     val (in, out) = (io.in, io.out)
 
+    val w_inflight = RegInit(false.B)
+
     /* ----------------- Read Channel ----------------- */
     val rd_arb = Module(new RRArbiter(new AXI4BundleA(AXI4Params.idBits), n))
     val rd_chosen = RegInit(0.U)
@@ -24,7 +26,9 @@ class AXI4Arbiter(n:Int) extends Module {
     for (i <- 0 until n) {
         in(i).ar <> rd_arb.io.in(i)
     }
-    out.ar <> rd_arb.io.out
+    out.ar.valid := rd_arb.io.out.valid && !w_inflight
+    out.ar.bits := rd_arb.io.out.bits
+    rd_arb.io.out.ready := out.ar.ready && !w_inflight
 
     // R
     out.r.ready := in(rd_chosen).r.ready
@@ -47,6 +51,12 @@ class AXI4Arbiter(n:Int) extends Module {
         wr_chosen := wr_arb.io.chosen
     }.elsewhen(io.out.b.fire) {
         wr_chosen := 0.U
+    }
+
+    when ((io.out.aw.fire || aw_has_fire) && io.out.w.fire) {
+        w_inflight := true.B
+    }.elsewhen(io.out.b.fire) {
+        w_inflight := false.B
     }
 
     // AW

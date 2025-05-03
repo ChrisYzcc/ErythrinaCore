@@ -17,7 +17,6 @@ class FTQ extends ErythModule {
     
         // flush
         val flush = Input(Bool())
-
     })
 
     class Ptr extends CircularQueuePtr[Ptr](FTQSize) {

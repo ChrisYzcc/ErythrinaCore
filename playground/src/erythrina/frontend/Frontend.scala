@@ -16,6 +16,7 @@ class Frontend extends ErythModule {
     val io = IO(new Bundle {
         val from_backend = new Bundle {
             val flush = Input(Bool())
+            val btb_upt = Flipped(Vec(CommitWidth, ValidIO(new BTBUpt))) // from FTQ, btb update
             val redirect = Flipped(ValidIO(new Redirect))
         }
         val to_backend = new Bundle {
@@ -34,10 +35,13 @@ class Frontend extends ErythModule {
     val bpu = Module(new BPU)
     val ibuffer = Module(new IBuffer)
 
-    ftq.io.flush := flush || io.from_backend.redirect.valid
-    idu.io.flush := flush || io.from_backend.redirect.valid
+    ftq.io.flush := flush || io.from_backend.redirect.valid || idu.io.redirect.valid
+    idu.io.flush := flush || io.from_backend.redirect.valid || idu.io.redirect.valid
     bpu.io.flush := flush
-    bpu.io.redirect <> redirect
+
+    bpu.io.redirect.valid := redirect.valid || idu.io.redirect.valid
+    bpu.io.redirect.bits := Mux(redirect.valid, redirect.bits, idu.io.redirect.bits)
+    bpu.io.btb_upt <> io.from_backend.btb_upt
 
     ftq.io.fetch_req    <> ibuffer.io.fetch_req
     ftq.io.fetch_rsp    <> ibuffer.io.fetch_rsp

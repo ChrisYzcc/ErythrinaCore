@@ -22,7 +22,7 @@ class BTBUpt extends ErythBundle {
 
 class BTB extends ErythModule {
     val io = IO(new Bundle {
-        val req = Flipped(Vec(FetchWidth, Flipped(ValidIO(new BTBReq))))
+        val req = Vec(FetchWidth, Flipped(ValidIO(new BTBReq)))
         val rsp = Vec(FetchWidth, ValidIO(new BTBRsp))
         val upt = Vec(CommitWidth, Flipped(ValidIO(new BTBUpt)))
     })
@@ -81,8 +81,8 @@ class BTB extends ErythModule {
         }
 
         // Update Target Buffer
-        val newest_taken_idx = (CommitWidth - 1).U - PriorityEncoder(untaken_vec.reverse)
-        when (io.upt(newest_taken_idx).valid) {
+        val newest_taken_idx = (CommitWidth - 1).U - PriorityEncoder(taken_vec.reverse)
+        when (io.upt(newest_taken_idx).valid && io.upt(newest_taken_idx).bits.taken) {
             targets.write(i.U, io.upt(newest_taken_idx).bits.target)
         }
     }

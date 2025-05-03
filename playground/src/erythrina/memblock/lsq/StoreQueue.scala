@@ -33,6 +33,25 @@ class StoreQueue extends ErythModule {
         val redirect = Flipped(ValidIO(new Redirect))
     })
 
+    def reorder(in: Seq[Valid[InstExInfo]]): Seq[Valid[InstExInfo]] = {
+        require(in.length == 2)
+        val sorted_meta = Wire(Vec(in.length, Valid(new InstExInfo)))
+
+        sorted_meta(0).valid := in(0).valid || in(1).valid
+        sorted_meta(0).bits := Mux(in(0).valid && in(1).valid,
+            Mux(in(0).bits.robPtr < in(1).bits.robPtr, in(0).bits, in(1).bits),
+            Mux(in(0).valid, in(0).bits, in(1).bits)
+        )
+
+        sorted_meta(1).valid := in(0).valid && in(1).valid
+        sorted_meta(1).bits := Mux(in(0).valid && in(1).valid,
+            Mux(in(0).bits.robPtr < in(1).bits.robPtr, in(1).bits, in(0).bits),
+            0.U.asTypeOf(new InstExInfo)
+        )
+
+        sorted_meta
+    }
+
     val entries = RegInit(VecInit(Seq.fill(StoreQueSize)(0.U.asTypeOf(new InstExInfo))))
     val valids = RegInit(VecInit(Seq.fill(StoreQueSize)(false.B)))
     val stu_finished = RegInit(VecInit(Seq.fill(StoreQueSize)(false.B)))
@@ -43,29 +62,69 @@ class StoreQueue extends ErythModule {
     val deqPtrExt = RegInit(0.U.asTypeOf(new SQPtr))
     val uncommitedPtrExt = RegInit(VecInit((0 until CommitWidth).map(_.U.asTypeOf(new SQPtr))))
 
+    // store queue state
+    val sqWORK :: sqFLUSH :: Nil = Enum(2)
+    val sq_state = RegInit(sqWORK)
+    switch (sq_state) {
+        is (sqWORK) {
+            when (io.redirect.valid) {
+                sq_state := sqFLUSH
+            }
+        }
+        is (sqFLUSH) {
+            when (deqPtrExt >= allocPtrExt(0)) {
+                sq_state := sqWORK
+            }
+        }
+    }
+
     // alloc (enq)
     val (alloc_req, alloc_rsp) = (io.alloc_req, io.alloc_rsp)
     val needAlloc = Wire(Vec(DispatchWidth, Bool()))
     val canAlloc = Wire(Vec(DispatchWidth, Bool()))
 
-    val all_canAlloc = needAlloc.zip(canAlloc).map {        // TODO: any imprument?
+    val all_canAlloc = needAlloc.zip(canAlloc).map {        // TODO: any improvement?
         case (need, can) => !need || can
-    }.reduce(_ && _)
+    }.reduce(_ && _) && (sq_state === sqWORK)
+
+    val reorder_req = reorder(alloc_req.map{
+        case x => 
+            val meta = Wire(Valid(new InstExInfo))
+            meta.valid := x.valid
+            meta.bits := x.bits
+            meta
+    })
+
+    for (i <- 0 until DispatchWidth) {
+        alloc_req(i).ready := false.B
+        alloc_rsp(i) := 0.U.asTypeOf(new SQPtr)
+    }
 
     for (i <- 0 until DispatchWidth) {
         val index = PopCount(needAlloc.take(i))
         val ptr = allocPtrExt(index)
 
-        needAlloc(i) := alloc_req(i).valid
+        needAlloc(i) := reorder_req(i).valid
         canAlloc(i) := needAlloc(i) && ptr >= deqPtrExt
         when (all_canAlloc && canAlloc(i)) {
-            entries(ptr.value) := alloc_req(i).bits
+            entries(ptr.value) := reorder_req(i).bits
             valids(ptr.value) := true.B
             stu_finished(ptr.value) := false.B
             rob_commited(ptr.value) := false.B
         }
-        alloc_rsp(i) := ptr
-        alloc_req(i).ready := all_canAlloc
+
+        val origin_hit_vec = alloc_req.map{
+            case x =>
+                x.valid && x.bits.robPtr === reorder_req(i).bits.robPtr && reorder_req(i).valid
+        }
+        assert(PopCount(origin_hit_vec) <= 1.U, "StoreQueue: multiple allocs with same robPtr")
+        val origin_hit = origin_hit_vec.reduce(_ || _)
+        val origin_idx = PriorityEncoder(origin_hit_vec)
+
+        when (origin_hit) {
+            alloc_req(origin_idx).ready := canAlloc(i) && all_canAlloc
+            alloc_rsp(origin_idx) := ptr
+        }
     }
     val allocNum = PopCount(canAlloc)
     allocPtrExt.foreach{case x => when (all_canAlloc) {x := x + allocNum}}

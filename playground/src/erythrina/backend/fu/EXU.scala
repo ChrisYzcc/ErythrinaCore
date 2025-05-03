@@ -106,8 +106,8 @@ class EXU0 extends BaseEXU {
     cmt.bits := RegNext(cmt_instBlk)
 
     /* --------------- Perf --------------- */
-    PerfCount("bpu_wrong", cmt.valid && cmt.bits.exception.bpu_mispredict && cmt.bits.fuType === FuType.bru)
-    PerfCount("bpu_correct", cmt.valid && !cmt.bits.exception.bpu_mispredict && cmt.bits.fuType === FuType.bru)
+    PerfCount("bpu_wrong_exu", cmt.valid && cmt.bits.exception.bpu_mispredict && cmt.bits.fuType === FuType.bru)
+    PerfCount("bpu_correct_exu", cmt.valid && !cmt.bits.exception.bpu_mispredict && cmt.bits.fuType === FuType.bru)
 }
 
 // exu1: alu

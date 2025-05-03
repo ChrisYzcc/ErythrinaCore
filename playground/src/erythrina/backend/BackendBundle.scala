@@ -111,6 +111,5 @@ class InstExInfo extends ErythBundle {
 }
 
 class Redirect extends ErythBundle {
-    val pc = UInt(XLEN.W)   // origin pc, for training BPU?
     val npc = UInt(XLEN.W)  // next pc
 }

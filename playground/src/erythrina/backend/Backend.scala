@@ -14,11 +14,13 @@ import erythrina.backend.rob.ROBPtr
 import difftest.DifftestInfos
 import erythrina.backend.issue.BypassInfo
 import erythrina.backend.dispatch.ISU
+import erythrina.frontend.bpu.BTBUpt
 
 class Backend extends ErythModule {
     val io = IO(new Bundle {
         val to_frontend = new Bundle {
             val flush = Output(Bool())
+            val btb_upt = Vec(CommitWidth, ValidIO(new BTBUpt))
             val redirect = ValidIO(new Redirect)
         }
 
@@ -179,6 +181,7 @@ class Backend extends ErythModule {
     rob.io.fl_free_req <> freelist.io.free_req
     rob.io.difftest <> io.difftest
     rob.io.lq_except_infos <> io.from_memblock.lq_except_infos
+    rob.io.btb_upt <> io.to_frontend.btb_upt
 
     // for Speculative
     isq_int.io.last_robPtr.valid := true.B

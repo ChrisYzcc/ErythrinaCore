@@ -12,6 +12,7 @@ import utils.{Halter, HaltOp}
 import utils.PerfDumpTrigger
 import utils.PerfCount
 import top.Config
+import erythrina.frontend.bpu.BTBUpt
 
 class ROB extends ErythModule {
     val io = IO(new Bundle {
@@ -47,6 +48,9 @@ class ROB extends ErythModule {
 
         // flush
         val flush = Output(Bool())
+
+        // BPU training
+        val btb_upt = Vec(CommitWidth, ValidIO(new BTBUpt))
 
         // redirect
         val redirect = ValidIO(new Redirect)
@@ -118,6 +122,7 @@ class ROB extends ErythModule {
     // Commit (deq)
     val fl_free_req = io.fl_free_req
     val rat_req = io.upt_arch_rat
+    val btb_upt = io.btb_upt
 
     val commit_needDeq = Wire(Vec(CommitWidth, Bool()))
     val commit_canDeq = Wire(Vec(CommitWidth, Bool()))
@@ -137,6 +142,12 @@ class ROB extends ErythModule {
         rat_req(i).valid := (if (i == 0) redirect.valid && entries(commitPtrExt(i).value).exception.can_commit || commit_canDeq(i) else commit_canDeq(i)) && entries(ptr.value).rd_need_rename
         rat_req(i).bits.a_reg := entries(ptr.value).a_rd
         rat_req(i).bits.p_reg := entries(ptr.value).p_rd
+
+        // BPU training
+        btb_upt(i).valid := (if (i == 0) redirect.valid && entries(commitPtrExt(i).value).exception.can_commit || commit_canDeq(i) else commit_canDeq(i))
+        btb_upt(i).bits.pc := entries(ptr.value).pc
+        btb_upt(i).bits.target := entries(ptr.value).real_target
+        btb_upt(i).bits.taken := entries(ptr.value).real_taken && (entries(ptr.value).fuType === FuType.bru)
     }
     val cmtNum = PopCount(commit_canDeq)
     commitPtrExt.foreach{case x => when (commit_canDeq.asUInt.orR) {x := x + cmtNum}}
@@ -145,7 +156,6 @@ class ROB extends ErythModule {
     val bottom_ptr = commitPtrExt(0)
     
     redirect.valid := entries(bottom_ptr.value).state.finished && entries(bottom_ptr.value).exception.has_exception && bottom_ptr < allocPtrExt(0)
-    redirect.bits.pc := entries(bottom_ptr.value).pc
     redirect.bits.npc := Mux1H(Seq(
         (entries(bottom_ptr.value).exception.can_commit) -> entries(bottom_ptr.value).real_target,
         entries(bottom_ptr.value).exception.store2load -> entries(bottom_ptr.value).pc,
