@@ -170,6 +170,9 @@ class ROB extends ErythModule {
         for (i <- 0 until CommitWidth) {
             commitPtrExt(i) := i.U.asTypeOf(new ROBPtr)
         }
+        for (i <- 0 until ROBSize) {
+            entries(i).state.finished := false.B
+        }
     }
 
     // Rob Commit Info

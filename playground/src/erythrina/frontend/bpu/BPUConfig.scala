@@ -6,7 +6,7 @@ import top.Config._
 
 object BPUParmams {
     /* ------------- Branch Target Buffer ------------- */
-    var BTBSize = 32
+    var BTBSize = 128
     def get_btb_idx(addr:UInt): UInt = {
         val idx = addr(log2Ceil(BTBSize), 1)
         idx
