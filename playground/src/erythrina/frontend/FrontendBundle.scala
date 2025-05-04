@@ -9,6 +9,7 @@ class InstInfo extends ErythBundle {
     val instr   = UInt(XLEN.W)
     val pc      = UInt(XLEN.W)
 
+    val bpu_hit = Bool()      // BPU says: this is a branch instruction
     val bpu_taken = Bool()      // BPU says: let's take the branch!
     val bpu_target = UInt(XLEN.W) // BPU says: branch target address
 }

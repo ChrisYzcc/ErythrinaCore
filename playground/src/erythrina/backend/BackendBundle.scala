@@ -83,6 +83,7 @@ class InstExInfo extends ErythBundle {
     val sqPtr = new SQPtr
 
     // branch prediction
+    val bpu_hit = Bool()      // BPU prediction hit
     val bpu_taken = Bool()      // BPU prediction result
     val bpu_target = UInt(XLEN.W)
 
@@ -98,6 +99,7 @@ class InstExInfo extends ErythBundle {
         this.instr := inst_info.instr
         this.pc := inst_info.pc
 
+        this.bpu_hit := inst_info.bpu_hit
         this.bpu_taken := inst_info.bpu_taken
         this.bpu_target := inst_info.bpu_target
     }

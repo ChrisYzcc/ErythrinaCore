@@ -144,8 +144,9 @@ class ROB extends ErythModule {
         rat_req(i).bits.p_reg := entries(ptr.value).p_rd
 
         // BPU training
-        btb_upt(i).valid := (if (i == 0) redirect.valid && entries(commitPtrExt(i).value).exception.can_commit || commit_canDeq(i) else commit_canDeq(i))
+        btb_upt(i).valid := (if (i == 0) redirect.valid && entries(commitPtrExt(i).value).exception.can_commit || commit_canDeq(i) else commit_canDeq(i)) && (entries(ptr.value).fuType === FuType.bru)
         btb_upt(i).bits.pc := entries(ptr.value).pc
+        btb_upt(i).bits.hit := entries(ptr.value).bpu_hit
         btb_upt(i).bits.target := entries(ptr.value).real_target
         btb_upt(i).bits.taken := entries(ptr.value).real_taken && (entries(ptr.value).fuType === FuType.bru)
     }
