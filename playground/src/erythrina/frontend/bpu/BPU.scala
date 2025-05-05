@@ -47,7 +47,7 @@ class BPU extends ErythModule {
 
     // request btb
     for (i <- 0 until FetchWidth) {
-        btb.io.req(i).valid := s0_valid
+        btb.io.req(i).valid := s0_valid && s1_ready
         btb.io.req(i).bits.pc := s0_pc + (i.U << 2)
     }
 

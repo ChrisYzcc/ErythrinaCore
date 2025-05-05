@@ -5,6 +5,7 @@ import chisel3.util._
 import erythrina.{ErythModule, ErythBundle}
 import BPUParmams._
 import utils.MultiPortQueue
+import utils.PerfCount
 
 class BTBReq extends ErythBundle {
     val pc = UInt(XLEN.W)
@@ -114,5 +115,10 @@ class BTB extends ErythModule {
             targets.write(idx, target)
             tags.write(idx, tag)
         }
+    }
+    
+    /* ------------------ Perf ------------------ */
+    for (i <- 0 until BTBSize) {
+        PerfCount(s"btb_replace_$i", train_req.valid && !train_req.bits.hit && get_btb_idx(train_req.bits.pc) === i.U)
     }
 }
