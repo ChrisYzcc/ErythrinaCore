@@ -3,6 +3,8 @@
 
 #include "memory.h"
 
+#define COMMIT_WIDTH 5
+
 extern const char *diff_ref_so;
 
 struct diff_infos {

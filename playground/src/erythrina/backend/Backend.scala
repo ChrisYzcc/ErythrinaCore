@@ -5,7 +5,7 @@ import chisel3.util._
 import erythrina.ErythModule
 import erythrina.memblock.lsq.{LQPtr, SQPtr}
 import erythrina.backend.issue.IssueQueue
-import erythrina.backend.fu.{EXU0, EXU1}
+import erythrina.backend.fu.{EXU0, EXU1, EXU2}
 import erythrina.backend.rob.ROB
 import erythrina.backend.rename.{RAT, FreeList, IRU, InstrPool}
 import erythrina.backend.regfile.{RegFile, BusyTable}
@@ -65,9 +65,11 @@ class Backend extends ErythModule {
     val isq_int = Module(new IssueQueue(2, "IntIssueQueue", 8))
     val isq_ld = Module(new IssueQueue(1, "LdIssueQueue", 8))
     val isq_st = Module(new IssueQueue(1, "StIssueQueue", 8))
+    val isq_div = Module(new IssueQueue(1, "DivIssueQueue", 4))
 
     val exu0 = Module(new EXU0())
     val exu1 = Module(new EXU1())
+    val exu2 = Module(new EXU2())
 
     val iru = Module(new IRU)
     val instr_pool = Module(new InstrPool)
@@ -94,12 +96,14 @@ class Backend extends ErythModule {
     bypass(2).bits.bypass_prd := io.from_memblock.ldu_cmt.bits.p_rd
     bypass(2).bits.bypass_data := io.from_memblock.ldu_cmt.bits.res
 
-    bypass(3).valid := false.B      // STU don't write back
-    bypass(3).bits := DontCare
+    bypass(3).valid := exu2.cmt.valid && exu2.cmt.bits.rf_wen
+    bypass(3).bits.bypass_prd := exu2.cmt.bits.p_rd
+    bypass(3).bits.bypass_data := exu2.cmt.bits.res
 
     isq_int.io.bypass <> bypass
     isq_ld.io.bypass <> bypass
     isq_st.io.bypass <> bypass
+    isq_div.io.bypass <> bypass
     for (i <- 0 until DispatchWidth) {
         isu_seq(i).io.bypass <> bypass
     }
@@ -147,6 +151,7 @@ class Backend extends ErythModule {
         isu.io.int_issue_req <> isq_int.io.enq(i)
         isu.io.ld_issue_req <> isq_ld.io.enq(i)
         isu.io.st_issue_req <> isq_st.io.enq(i)
+        isu.io.div_issue_req <> isq_div.io.enq(i)
     }
     
 
@@ -162,6 +167,12 @@ class Backend extends ErythModule {
     exu1.io.cmt <> rob.io.fu_commit(1)
     exu1.io.bt_free_req <> busyTable.io.free(1)
     exu1.io.rf_write <> regfile.io.writePorts(1)
+
+    exu2.io.req <> isq_div.io.deq(0)
+    exu2.io.exu_info <> isq_div.io.exu_info(0)
+    exu2.io.cmt <> rob.io.fu_commit(4)
+    exu2.io.bt_free_req <> busyTable.io.free(3)
+    exu2.io.rf_write <> regfile.io.writePorts(3)
 
     io.to_memblock.ldu_req <> isq_ld.io.deq(0)
     io.from_memblock.ldu_cmt <> rob.io.fu_commit(2)
@@ -188,6 +199,7 @@ class Backend extends ErythModule {
     isq_int.io.last_robPtr.bits := rob.io.last_robPtr
     isq_ld.io.last_robPtr <> DontCare
     isq_st.io.last_robPtr <> DontCare
+    isq_div.io.last_robPtr <> DontCare
 
     val backend_redirect = rob.io.redirect
     /* --------------- Flush & Redirect -------------- */
@@ -203,8 +215,10 @@ class Backend extends ErythModule {
     isq_int.io.redirect <> backend_redirect
     isq_ld.io.redirect <> backend_redirect
     isq_st.io.redirect <> backend_redirect
+    isq_div.io.redirect <> backend_redirect
     exu0.io.redirect <> backend_redirect
     exu1.io.redirect <> backend_redirect
+    exu2.io.redirect <> backend_redirect
     rat.io.redirect <> RegNext(backend_redirect)
     busyTable.io.redirect <> RegNext(backend_redirect)
     freelist.io.redirect <> RegNext(backend_redirect)

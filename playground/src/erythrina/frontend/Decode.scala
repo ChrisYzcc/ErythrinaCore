@@ -33,12 +33,14 @@ object SrcType {
 }
 
 object FuType {
-    def num = 5
+    def num = 7
     def alu = "b000".U
     def stu = "b001".U  // store unit
     def ldu = "b010".U  // load unit
     def bru = "b011".U
     def csr = "b100".U
+    def mul = "b101".U
+    def div = "b110".U
 
     def apply() = UInt(log2Up(num).W)
 }
@@ -49,7 +51,7 @@ object FuOpType extends HasErythCoreParams {
 
 object Instructions extends InstrType {
     val decodeDefault = List(TypeER, FuType.alu, ALUop.nop)
-    def decode_table = RVI.table ++ Privileged.table ++ RV_Zicsr.table
+    def decode_table = RVI.table ++ Privileged.table ++ RV_Zicsr.table ++ RV_M.table
 }
 
 class Decoder extends ErythModule with InstrType{
@@ -112,7 +114,6 @@ class Decoder extends ErythModule with InstrType{
 
     val rf_wen = !(instr_type === TypeB || instr_type === TypeS || instr_type === TypeN) && rd =/= 0.U
 
-    // TODO: CSR
     val is_csr = fuType === FuType.csr
 
     val csr_src1_ready = fuOpType === CSRop.jmp

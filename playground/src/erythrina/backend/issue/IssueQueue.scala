@@ -121,16 +121,19 @@ class IssueQueue(exu_num:Int, name:String, size:Int) extends ErythModule {
         
         val canHandle = available_exu_list.reduce(_||_)
         
-        deq(handle_exu_idx(i)).valid := valid && canHandle
-        deq(handle_exu_idx(i)).bits := entry
+        when (canHandle) {
+            deq(handle_exu_idx(i)).valid := valid && canHandle
+            deq(handle_exu_idx(i)).bits := entry
 
-        when (deq(handle_exu_idx(i)).fire) {
-            valids(deq_idx(i)) := false.B
-            for (j <- 0 until size) {
-                age_matrix(deq_idx(i))(j) := false.B
-                age_matrix(j)(deq_idx(i)) := false.B
+            when (deq(handle_exu_idx(i)).fire) {
+                valids(deq_idx(i)) := false.B
+                for (j <- 0 until size) {
+                    age_matrix(deq_idx(i))(j) := false.B
+                    age_matrix(j)(deq_idx(i)) := false.B
+                }
             }
         }
+        
     }
 
     // handle bypass

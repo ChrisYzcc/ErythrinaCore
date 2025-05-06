@@ -1,0 +1,28 @@
+package erythrina.frontend.isa
+
+import chisel3._
+import chisel3.util._
+import erythrina.frontend._
+import erythrina.backend.fu.MDUop
+
+object RV_M extends InstrType {
+    def MUL   = BitPat("b0000001_?????_?????_000_?????_01100_11")
+    def MULH  = BitPat("b0000001_?????_?????_001_?????_01100_11")
+    def MULHSU= BitPat("b0000001_?????_?????_010_?????_01100_11")
+    def MULHU = BitPat("b0000001_?????_?????_011_?????_01100_11")
+    def DIV   = BitPat("b0000001_?????_?????_100_?????_01100_11")
+    def DIVU  = BitPat("b0000001_?????_?????_101_?????_01100_11")
+    def REM   = BitPat("b0000001_?????_?????_110_?????_01100_11")
+    def REMU  = BitPat("b0000001_?????_?????_111_?????_01100_11")
+
+    val table = Array(
+        MUL   -> List(TypeR, FuType.mul, MDUop.mul),
+        MULH  -> List(TypeR, FuType.mul, MDUop.mulh),
+        MULHSU-> List(TypeR, FuType.mul, MDUop.mulhsu),
+        MULHU -> List(TypeR, FuType.mul, MDUop.mulhu),
+        DIV   -> List(TypeR, FuType.div, MDUop.div),
+        DIVU  -> List(TypeR, FuType.div, MDUop.divu),
+        REM   -> List(TypeR, FuType.div, MDUop.rem),
+        REMU  -> List(TypeR, FuType.div, MDUop.remu)
+    )
+}

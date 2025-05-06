@@ -357,7 +357,7 @@ int Emulator::step() {
     // update NPC Sim state
     int cmt_cnt = 0;
     diff_infos infos;
-    for (int i = 0; i < 4; i++){
+    for (int i = 0; i < COMMIT_WIDTH; i++){
         if (get_diff_infos(&infos, i)) {
             cmt_cnt ++;
             npc_arch_sim_state.pc = infos.pc;

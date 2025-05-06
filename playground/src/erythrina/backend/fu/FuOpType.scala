@@ -60,3 +60,14 @@ object CSRop {
     def isset(csrop: UInt) = csrop(1) & ~csrop(0)
     def isclr(csrop: UInt) = csrop(1) & csrop(1)
 }
+
+object MDUop {
+    def mul     = "b0000".U
+    def mulh    = "b0001".U
+    def mulhu   = "b0010".U
+    def mulhsu  = "b0011".U
+    def div     = "b0100".U
+    def divu    = "b0101".U
+    def rem     = "b0110".U
+    def remu    = "b0111".U
+}

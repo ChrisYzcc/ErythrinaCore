@@ -55,6 +55,9 @@ class ISU extends ErythModule {
         // to StIssueQueue
         val st_issue_req = DecoupledIO(new InstExInfo)
 
+        // to DivIssueQueue
+        val div_issue_req = DecoupledIO(new InstExInfo)
+
         // Redirect
         val redirect = Flipped(ValidIO(new Redirect))
 
@@ -68,6 +71,7 @@ class ISU extends ErythModule {
     val (sq_alloc_req, sq_alloc_rsp) = (io.sq_alloc_req, io.sq_alloc_rsp)
     val (int_issue_req, ld_issue_req, st_issue_req) = (io.int_issue_req, io.ld_issue_req, io.st_issue_req)
     val redirect = io.redirect
+    val div_issue_req = io.div_issue_req
 
     /* ------------- Stage Ctrl ------------- */
     val s0_valid = Wire(Bool())
@@ -164,7 +168,8 @@ class ISU extends ErythModule {
 
     val is_ldu = out_task.fuType === FuType.ldu
     val is_stu = out_task.fuType === FuType.stu
-    val is_int = !is_ldu && !is_stu
+    val is_div = out_task.fuType === FuType.div
+    val is_int = !is_ldu && !is_stu && !is_div
 
     val ptr_ready = (!need_lq_ptr || lqPtr_ready) && (!need_sq_ptr || sqPtr_ready)
     int_issue_req.valid := s1_valid && is_int && ptr_ready && !redirect.valid
@@ -173,10 +178,13 @@ class ISU extends ErythModule {
     ld_issue_req.bits := out_task
     st_issue_req.valid := s1_valid && is_stu && ptr_ready && !redirect.valid
     st_issue_req.bits := out_task
+    div_issue_req.valid := s1_valid && is_div && ptr_ready && !redirect.valid
+    div_issue_req.bits := out_task
 
     val int_issue_ready = !is_int || int_issue_req.ready
     val ld_issue_ready = !is_ldu || ld_issue_req.ready
     val st_issue_ready = !is_stu || st_issue_req.ready
+    val div_issue_ready = !is_div || div_issue_req.ready
 
-    s1_ready := !s1_valid || s1_valid && (int_issue_ready && ld_issue_ready && st_issue_ready) && ptr_ready || redirect.valid
+    s1_ready := !s1_valid || s1_valid && (int_issue_ready && ld_issue_ready && st_issue_ready && div_issue_ready) && ptr_ready || redirect.valid
 }
