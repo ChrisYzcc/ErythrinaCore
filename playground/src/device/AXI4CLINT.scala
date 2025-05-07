@@ -3,21 +3,24 @@ package device
 import chisel3._
 import chisel3.util._
 import erythrina.ErythModule
-import bus.axi4.AXI4Lite
+import bus.axi4.AXI4
 import utils.LookupTree
 
 object AXI4CLINTAddr {
-    def rtc_l = 0xa0000048L.U
-    def rtc_h = 0xa000004cL.U
+    def rtc_l = 0x2000000L.U
+    def rtc_h = 0x2000004L.U
 }
 
 class AXI4CLINT extends ErythModule {
     val io = IO(new Bundle {
-        val axi = Flipped(new AXI4Lite)
+        val axi = Flipped(new AXI4)
     })
 
     val axi = io.axi
     assert(!(axi.aw.valid || axi.w.valid), "AXI4CLINT does not support write operations")
+    axi.aw <> DontCare
+    axi.w <> DontCare
+    axi.b <> DontCare
 
     val sREQ :: sRSP :: Nil = Enum(2)
     val state = RegInit(sREQ)
@@ -44,8 +47,9 @@ class AXI4CLINT extends ErythModule {
 
     axi.r.valid := state === sRSP
     axi.r.bits := 0.U.asTypeOf(axi.r.bits)
-    axi.r.bits.data := LookupTree(addr_r, Seq(
-        AXI4CLINTAddr.rtc_l -> Cat(Fill(XLEN, 0.B), mtime(31,0)),
-        AXI4CLINTAddr.rtc_h -> Cat(Fill(XLEN, 0.B), mtime(63,32))
+    axi.r.bits.data := LookupTree(addr_r, List(
+        AXI4CLINTAddr.rtc_l -> (mtime(31, 0)),
+        AXI4CLINTAddr.rtc_h -> (mtime(63,32))
     ))
+    axi.r.bits.last := true.B
 }

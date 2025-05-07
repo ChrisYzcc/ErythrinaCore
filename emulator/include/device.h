@@ -4,8 +4,8 @@
 #include <memory.h>
 #define DEV_NUM 100
 
-#define SERIAL_BASE 0xa00003f8
-#define RTC_BASE    0xa0000048
+#define SERIAL_BASE 0x10000000
+#define RTC_BASE    0x02000000
 
 extern void init_device();
 extern void init_serial();

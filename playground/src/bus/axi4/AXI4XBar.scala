@@ -4,7 +4,7 @@ import chisel3._
 import chisel3.util._
 import erythrina.ErythModule
 
-class AXI4XBar(addr_space: List[(UInt, UInt)]) extends ErythModule {
+class AXI4XBar(addr_space: List[(Long, Long)]) extends ErythModule {
     val io = IO(new Bundle {
         val in = Flipped(new AXI4)
         val out = Vec(addr_space.size, new AXI4)
@@ -16,7 +16,7 @@ class AXI4XBar(addr_space: List[(UInt, UInt)]) extends ErythModule {
     val r_hit_vec = addr_space.map{
         case (start, end) => {
             val hit = Wire(Bool())
-            hit := in.ar.bits.addr >= start && in.ar.bits.addr < end
+            hit := in.ar.bits.addr >= start.U && in.ar.bits.addr <= end.U
             hit
         }
     }
@@ -58,7 +58,7 @@ class AXI4XBar(addr_space: List[(UInt, UInt)]) extends ErythModule {
     val w_hit_vec = addr_space.map{
         case (start, end) => {
             val hit = Wire(Bool())
-            hit := in.aw.bits.addr >= start && in.aw.bits.addr < end
+            hit := in.aw.bits.addr >= start.U && in.aw.bits.addr <= end.U
             hit
         }
     }
@@ -76,9 +76,9 @@ class AXI4XBar(addr_space: List[(UInt, UInt)]) extends ErythModule {
     }
 
     // W
-    in.w.ready := out(Mux(aw_has_fire, w_chosen, w_chosen_reg)).w.ready
+    in.w.ready := out(Mux(aw_has_fire, w_chosen_reg, w_chosen)).w.ready
     for (i <- 0 until addr_space.size) {
-        out(i).w.valid := in.w.valid && Mux(aw_has_fire, w_chosen, w_chosen_reg) === i.U
+        out(i).w.valid := in.w.valid && Mux(aw_has_fire, w_chosen_reg, w_chosen) === i.U
         out(i).w.bits := in.w.bits
     }
 

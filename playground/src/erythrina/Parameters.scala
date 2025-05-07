@@ -6,8 +6,8 @@ import chisel3.util._
 
 object AddrSpace {
     val addr_space = List(
-        (0x80000000L, 0x88000000L),
-        (0xa0000000L, 0xa0001000L)
+        (0x0f000000L, 0x88000000L),     // other
+        (0x02000000L, 0x02010000L)      // CLINT
     )
 
     def in_addr_space(addr: UInt): Bool = {

@@ -14,12 +14,8 @@ class SimTop extends Module {
 
     val core = Module(new ErythrinaCore)
 
-    val axi_arb = Module(new AXI4Arbiter(2))
-    axi_arb.io.in(0) <> core.io.d_axi
-    axi_arb.io.in(1) <> core.io.i_axi
-
     val axi_memory = Module(new AXI4Memory)
-    axi_memory.axi <> axi_arb.io.out
+    axi_memory.axi <> core.io.master_axi
 
     val difftest = Module(new DifftestBox)
     difftest.io.diff_infos <> core.io.difftest
@@ -35,11 +31,7 @@ class PerfTop extends Module {
 
     val core = Module(new ErythrinaCore)
 
-    val axi_arb = Module(new AXI4Arbiter(2))
-    axi_arb.io.in(0) <> core.io.d_axi
-    axi_arb.io.in(1) <> core.io.i_axi
-
-    axi_arb.io.out <> io
+    core.io.master_axi <> io
 }
 
 class YSYXTop extends Module {

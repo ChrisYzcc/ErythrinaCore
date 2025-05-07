@@ -3,15 +3,17 @@ package device
 import chisel3._
 import chisel3.util._
 import erythrina.ErythModule
-import bus.axi4.AXI4Lite
+import bus.axi4.AXI4
 
 class AXI4URAT extends ErythModule {
     val io = IO(new Bundle {
-        val axi = Flipped(new AXI4Lite)
+        val axi = Flipped(new AXI4)
     })
 
     val axi = io.axi
     assert(!axi.ar.valid, "AXI4UART does not support read operations")
+    axi.ar <> DontCare
+    axi.r <> DontCare
 
     val aw_fire_reg = RegInit(false.B)
     when (axi.aw.fire) {
