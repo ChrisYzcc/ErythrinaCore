@@ -243,4 +243,9 @@ class ROB extends ErythModule {
     
     /* -------------------- TopDown -------------------- */
     PerfCount("topdown_SlotsRetired", PopCount(io.difftest.map(_.valid)))
+
+    /* -------------------- Perf -------------------- */
+    PerfCount("redirect_mispred", redirect.valid && entries(bottom_ptr.value).exception.bpu_mispredict)
+    PerfCount("redirect_store2load", redirect.valid && entries(bottom_ptr.value).exception.store2load)
+    PerfCount("redirect_ret", redirect.valid && entries(bottom_ptr.value).exception.ret)
 }

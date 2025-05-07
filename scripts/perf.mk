@@ -6,6 +6,11 @@ run-micro: $(SIM_TARGET)
 	$(call git_commit, "run microbench")
 	$(SIM_TARGET) -d $(DIFF_SO) $(PERF_IMG) $(PERF_ARG) 2> $(BUILD_DIR)/stderr.log
 
+COREMARK_IMG = $(NPC_HOME)/ready-to-run/coremark-riscv32-npc.bin
+run-coremark: $(SIM_TARGET)
+	$(call git_commit, "run coremark")
+	$(SIM_TARGET) -d $(DIFF_SO) $(COREMARK_IMG) $(PERF_ARG) 2> $(BUILD_DIR)/stderr.log
+
 perf: $(PERF_VERILOG_SRC)
 	$(MAKE) -C $(YOSYS_HOME) sta \
 		DESIGN=PerfTop SDC_FILE=$(YOSYS_HOME)/scripts/default.sdc\
