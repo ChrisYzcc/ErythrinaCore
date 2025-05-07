@@ -39,7 +39,9 @@ class LDU extends ErythModule {
     val (req, axi) = (io.req, io.axi)
     val redirect = io.redirect
 
-    val sIDLE :: sREQ :: sRECV :: sDROP :: Nil = Enum(4)
+    val req_addr_err = Wire(Bool())
+
+    val sIDLE :: sREQ :: sRECV :: sDROP :: sERR :: Nil = Enum(5)
     val state = RegInit(sIDLE)
 
     switch (state) {
@@ -51,8 +53,10 @@ class LDU extends ErythModule {
         is (sREQ) {
             when (redirect.valid) {
                 state := sIDLE
-            }.elsewhen(axi.ar.fire) {
+            }.elsewhen(axi.ar.fire && !req_addr_err) {
                 state := sRECV
+            }.elsewhen(req_addr_err) {
+                state := sERR
             }
         }
         is (sRECV) {
@@ -67,6 +71,9 @@ class LDU extends ErythModule {
                 state := sIDLE
             }
         }
+        is (sERR) {
+            state := sIDLE
+        }
     }
 
     req.ready := state === sIDLE
@@ -76,19 +83,19 @@ class LDU extends ErythModule {
     val addr = (req_task.src1 + req_task.src2)
 
     val req_addr = Cat(addr(XLEN - 1, 2), 0.U(2.W))
-    val addr_err = !AddrSpace.in_addr_space(req_addr)
+    req_addr_err := !AddrSpace.in_addr_space(req_addr)
 
-    axi.ar.valid := state === sREQ && !redirect.valid && !addr_err
+    axi.ar.valid := state === sREQ && !redirect.valid && !req_addr_err
     axi.ar.bits := 0.U.asTypeOf(axi.ar.bits)
     axi.ar.bits.addr := req_addr
     axi.ar.bits.size := "b010".U    // 4 bytes per transfer
 
-    val to_recv_task = WireInit(req_task)
-    to_recv_task.addr := addr
-    to_recv_task.exception.exceptions.load_access_fault := addr_err
+    val req_out_task = WireInit(req_task)
+    req_out_task.addr := addr
+    req_out_task.exception.exceptions.load_access_fault := req_addr_err
 
     // sRECV
-    val recv_task = RegEnable(to_recv_task, 0.U.asTypeOf(new InstExInfo), axi.ar.fire)
+    val recv_task = RegEnable(req_out_task, 0.U.asTypeOf(new InstExInfo), axi.ar.fire)
 
     val recv_addr = recv_task.addr
 
@@ -153,15 +160,22 @@ class LDU extends ErythModule {
 
     axi.r.ready := state === sRECV || state === sDROP
 
-    // Commit
-    val cmt_instBlk = WireInit(recv_task)
-    cmt_instBlk.res := res
-    cmt_instBlk.mask := mask
-    cmt_instBlk.addr := Cat(recv_addr(XLEN - 1, 2), 0.U(2.W))
-    cmt_instBlk.state.finished := true.B
+    val recv_res_blk = WireInit(recv_task)
+    recv_res_blk.res := res
+    recv_res_blk.mask := mask
+    recv_res_blk.addr := Cat(recv_addr(XLEN - 1, 2), 0.U(2.W))
+    recv_res_blk.state.finished := true.B
 
-    io.ldu_cmt.valid := (axi.r.fire && state === sRECV || r_has_err) && !redirect.valid
-    io.ldu_cmt.bits := cmt_instBlk
+    // sERR
+    val err_task = RegEnable(req_out_task, 0.U.asTypeOf(new InstExInfo), state === sREQ && req_addr_err)
+    val err_res_blk = WireInit(err_task)
+    err_res_blk.addr := Cat(err_task.addr(XLEN - 1, 2), 0.U(2.W))
+    err_res_blk.state.finished := true.B
+    err_res_blk.exception.exceptions.load_access_fault := true.B
+
+    // Commit
+    io.ldu_cmt.valid := (axi.r.fire && state === sRECV || state === sERR) && !redirect.valid
+    io.ldu_cmt.bits := Mux(state === sRECV, recv_res_blk, err_res_blk)
     
     io.rf_write.valid := io.ldu_cmt.valid && io.ldu_cmt.bits.rf_wen
     io.rf_write.bits.addr := io.ldu_cmt.bits.p_rd
