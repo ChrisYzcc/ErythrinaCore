@@ -159,30 +159,33 @@ class AXI4Memory extends Module {
 	val ddr_rd_req_ready = Wire(Bool())
 	val ddr_rd_rsp_valid = Wire(Bool())
 
-	val rIDLE :: rWAIT_DRAM :: rREQ :: rRESP :: Nil = Enum(4)
+	val rIDLE :: rWAIT_DRAM_REQ :: rWAIT_DRAM_RSP :: rREQ :: rRESP :: Nil = Enum(5)
 	val rState = RegInit(rIDLE)
 	switch (rState) {
 		is (rIDLE) {
 			when (axi.ar.fire) {
-				rState := rWAIT_DRAM
+				rState := rWAIT_DRAM_REQ
 			}
 		}
-		is (rWAIT_DRAM) {
+		is (rWAIT_DRAM_REQ) {
 			when (ddr_rd_req_ready) {
+				rState := rWAIT_DRAM_RSP
+			}
+		}
+		is (rWAIT_DRAM_RSP) {
+			when (ddr_rd_rsp_valid) {
 				rState := rREQ
 			}
 		}
 		is (rREQ) {
-			when (ddr_rd_rsp_valid) {
-				rState := rRESP
-			}
+			rState := rRESP
 		}
 		is (rRESP) {
 			when (axi.r.fire) {
 				when (axi.r.bits.last) {
 					rState := rIDLE
 				} .otherwise {
-					rState := rWAIT_DRAM
+					rState := rREQ
 				}
 			}
 		}
@@ -194,7 +197,7 @@ class AXI4Memory extends Module {
 	when (axi.ar.fire) {
 		rd_addr := axi.ar.bits.addr
 		rd_id := axi.ar.bits.id
-	}.elsewhen(rState === rREQ && ddr_rd_rsp_valid) {
+	}.elsewhen(rState === rREQ) {
 		rd_addr := rd_addr + 4.U
 	}
 
@@ -212,11 +215,11 @@ class AXI4Memory extends Module {
 	assert(!axi.ar.valid || axi.ar.bits.size === "b010".U)
 
 	// DDR
-	ddr_rd_req_ready := readRequest(rState === rWAIT_DRAM, rd_addr, rd_id)
-	ddr_rd_rsp_valid := readResponse(rState === rREQ)._1
+	ddr_rd_req_ready := readRequest(rState === rWAIT_DRAM_REQ && !ddr_rd_req_ready, rd_addr, rd_id)
+	ddr_rd_rsp_valid := readResponse(rState === rWAIT_DRAM_RSP && !ddr_rd_rsp_valid)._1
 
 	// Get Data
-	val rd_data = readData(rState === rREQ && ddr_rd_rsp_valid, rd_addr)
+	val rd_data = readData(rState === rREQ, rd_addr)
 
 	// R
 	axi.r.valid := rState === rRESP
@@ -229,23 +232,26 @@ class AXI4Memory extends Module {
 	val ddr_wr_req_ready = Wire(Bool())
 	val ddr_wr_rsp_valid = Wire(Bool())
 
-	val wIDLE :: wWAIT_DRAM :: wREQ :: wRESP :: Nil = Enum(4)
+	val wIDLE :: wWAIT_DRAM_REQ :: wWAIT_DRAM_RSP :: wREQ :: wRESP :: Nil = Enum(5)
 	val wState = RegInit(wIDLE)
 	switch (wState) {
 		is (wIDLE) {
 			when (axi.aw.fire && axi.w.fire) {
-				wState := wWAIT_DRAM
+				wState := wWAIT_DRAM_REQ
 			}
 		}
-		is (wWAIT_DRAM) {
+		is (wWAIT_DRAM_REQ) {
 			when (ddr_wr_req_ready) {
 				wState := wREQ
 			}
 		}
-		is (wREQ) {
+		is (wWAIT_DRAM_RSP) {
 			when (ddr_wr_rsp_valid) {
 				wState := wRESP
 			}
+		}
+		is (wREQ) {
+			wState := wRESP
 		}
 		is (wRESP) {
 			when (axi.b.fire) {
@@ -268,11 +274,11 @@ class AXI4Memory extends Module {
 	axi.w.ready := axi.aw.valid && axi.w.valid && wState === wIDLE
 
 	// DDR
-	ddr_wr_req_ready := writeRequest(wState === wWAIT_DRAM, aw_task.addr, aw_task.id)
-	ddr_wr_rsp_valid := writeResponse(wState === wREQ)._1
+	ddr_wr_req_ready := writeRequest(wState === wWAIT_DRAM_REQ && !ddr_wr_req_ready, aw_task.addr, aw_task.id)
+	ddr_wr_rsp_valid := writeResponse(wState === wWAIT_DRAM_RSP && !ddr_wr_rsp_valid)._1
 
 	// Write
-	writeData(wState === wREQ && ddr_wr_rsp_valid, aw_task.addr, w_task.data, w_task.strb)
+	writeData(wState === wREQ, aw_task.addr, w_task.data, w_task.strb)
 
 	// B
 	axi.b.valid := wState === wRESP

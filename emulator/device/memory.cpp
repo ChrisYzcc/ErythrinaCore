@@ -29,7 +29,7 @@ out_dir = DRAMSIM3_OUTDIR;
 #endif
     std::cout << "DRAMSIM3 config: " << config_file << std::endl;
     std::cout << "DRAMSIM3 outdir: " << out_dir << std::endl;
-    dram = new ComplexCoDRAMsim3(config_file, out_dir);
+    dram = new ComplexCoDRAMsim3(config_file, out_dir, 0);
 
     if (img == nullptr) {
         printf("Use default image.\n");
