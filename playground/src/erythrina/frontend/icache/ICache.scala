@@ -127,18 +127,8 @@ class ICache extends ErythModule {
     }
     
     val tags = SyncReadMem(ICacheParams.sets, Vec(ICacheParams.ways, UInt(ICacheParams.TagLen.W)))
-    when (reset.asBool) {
-        for (i <- 0 until ICacheParams.sets) {
-            tags.write(i.U, 0.U.asTypeOf(Vec(ICacheParams.ways, UInt(ICacheParams.TagLen.W))))
-        }
-    }
 
     val datas = SyncReadMem(ICacheParams.sets, Vec(ICacheParams.ways, UInt((CachelineSize * 8).W)))
-    when (reset.asBool) {
-        for (i <- 0 until ICacheParams.sets) {
-            datas.write(i.U, 0.U.asTypeOf(Vec(ICacheParams.ways, UInt((CachelineSize * 8).W))))
-        }
-    }
 
     val lru_seq = Seq.fill(ICacheParams.sets)(Module(new PLRU))
     val lru_oldest_vec = VecInit(lru_seq.map(_.io.oldest))

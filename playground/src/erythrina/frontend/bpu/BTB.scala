@@ -63,30 +63,26 @@ class BTB extends ErythModule {
     val targets = SyncReadMem(BTBSize, UInt(XLEN.W))
     val tags = SyncReadMem(BTBSize, UInt(TagBits.W))
     val satcnts = RegInit(VecInit(Seq.fill(BTBSize)(0.U.asTypeOf(new SatCnt(2)))))
-
-    when (reset.asBool) {
-        for (i <- 0 until BTBSize) {
-            targets.write(i.U, 0.U)
-            tags.write(i.U, 0.U)
-        }
-    }
+    val valids = RegInit(VecInit(Seq.fill(BTBSize)(false.B)))
 
     /* ------------- Request ------------- */
     val btb_targets = Wire(Vec(FetchWidth, UInt(XLEN.W)))
     val btb_tags = Wire(Vec(FetchWidth, UInt(TagBits.W)))
     val btb_satcnts = Wire(Vec(FetchWidth, UInt(2.W)))
+    val btb_valids = Wire(Vec(FetchWidth, Bool()))
 
     for (i <- 0 until FetchWidth) {
         val idx = get_btb_idx(io.req(i).bits.pc)
         btb_targets(i) := targets.read(idx, io.req(i).valid)
         btb_tags(i) := tags.read(idx, io.req(i).valid)
         btb_satcnts(i) := RegNext(satcnts(idx).cnt)
+        btb_valids(i) := RegNext(valids(idx))
     }
 
     /* ------------- Response ------------- */
     for (i <- 0 until FetchWidth) {
         io.rsp(i).valid := RegNext(io.req(i).valid)
-        io.rsp(i).bits.hit := btb_tags(i) === get_btb_tag(RegNext(io.req(i).bits.pc))
+        io.rsp(i).bits.hit := btb_tags(i) === get_btb_tag(RegNext(io.req(i).bits.pc)) && btb_valids(i)
         io.rsp(i).bits.taken := btb_satcnts(i)(1) && io.rsp(i).bits.hit
         io.rsp(i).bits.target := btb_targets(i)
     }
@@ -114,6 +110,7 @@ class BTB extends ErythModule {
         when (!hit) {
             targets.write(idx, target)
             tags.write(idx, tag)
+            valids(idx) := true.B
         }
     }
     
