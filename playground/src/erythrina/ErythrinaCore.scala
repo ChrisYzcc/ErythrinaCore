@@ -44,11 +44,7 @@ class ErythrinaCore extends ErythModule {
     icache.io.rsp <> frontend.io.icache_rsp
     icache.io.axi <> i_axi
 
-    memblock.io.axi.ldu.ar <> d_axi.ar
-    memblock.io.axi.ldu.r <> d_axi.r
-    memblock.io.axi.stu.aw <> d_axi.aw
-    memblock.io.axi.stu.w <> d_axi.w
-    memblock.io.axi.stu.b <> d_axi.b
+    memblock.io.axi <> d_axi
 
     frontend.io.to_backend <> backend.io.from_frontend
     frontend.io.from_backend <> backend.io.to_frontend

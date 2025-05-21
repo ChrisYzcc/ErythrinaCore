@@ -12,14 +12,13 @@ import erythrina.memblock.StoreFwdBundle
 import erythrina.backend.rob.ROBPtr
 import erythrina.backend.Redirect
 import erythrina.AddrSpace
+import erythrina.memblock.dcache._
 
 class LDU extends ErythModule {
     val io = IO(new Bundle {
         val req = Flipped(DecoupledIO(new InstExInfo))
-        val axi = new Bundle {
-            val ar = DecoupledIO(new AXI4BundleA(AXI4Params.idBits))
-            val r = Flipped(DecoupledIO(new AXI4BundleR(AXI4Params.dataBits, AXI4Params.idBits)))
-        }
+        val dcache_req = DecoupledIO(new DCacheReq)
+        val dcache_resp = Flipped(ValidIO(new DCacheResp))
 
         val st_fwd_query = ValidIO(new StoreFwdBundle)
         val st_fwd_result = Input(new StoreFwdBundle)
@@ -36,7 +35,8 @@ class LDU extends ErythModule {
         val redirect = Flipped(ValidIO(new Redirect))
     })
 
-    val (req, axi) = (io.req, io.axi)
+    val req = io.req
+    val (dcache_req, dcache_resp) = (io.dcache_req, io.dcache_resp)
     val redirect = io.redirect
 
     val req_addr_err = Wire(Bool())
@@ -53,21 +53,21 @@ class LDU extends ErythModule {
         is (sREQ) {
             when (redirect.valid) {
                 state := sIDLE
-            }.elsewhen(axi.ar.fire && !req_addr_err) {
+            }.elsewhen(dcache_req.fire && !req_addr_err) {
                 state := sRECV
             }.elsewhen(req_addr_err) {
                 state := sERR
             }
         }
         is (sRECV) {
-            when (axi.r.fire) {
+            when (dcache_resp.valid && dcache_resp.bits.cmd === DCacheCMD.READ) {
                 state := sIDLE
             }.elsewhen(redirect.valid) {
                 state := sDROP
             }
         }
         is (sDROP) {
-            when (axi.r.fire) {
+            when (dcache_resp.valid && dcache_resp.bits.cmd === DCacheCMD.READ) {
                 state := sIDLE
             }
         }
@@ -85,17 +85,17 @@ class LDU extends ErythModule {
     val req_addr = Cat(addr(XLEN - 1, 2), 0.U(2.W))
     req_addr_err := !AddrSpace.in_addr_space(req_addr)
 
-    axi.ar.valid := state === sREQ && !redirect.valid && !req_addr_err
-    axi.ar.bits := 0.U.asTypeOf(axi.ar.bits)
-    axi.ar.bits.addr := req_addr
-    axi.ar.bits.size := "b010".U    // 4 bytes per transfer
+    dcache_req.valid := state === sREQ && !redirect.valid && !req_addr_err
+    dcache_req.bits := 0.U.asTypeOf(new DCacheReq)
+    dcache_req.bits.cmd := DCacheCMD.READ
+    dcache_req.bits.addr := req_addr
 
     val req_out_task = WireInit(req_task)
     req_out_task.addr := addr
     req_out_task.exception.exceptions.load_access_fault := req_addr_err
 
     // sRECV
-    val recv_task = RegEnable(req_out_task, 0.U.asTypeOf(new InstExInfo), axi.ar.fire)
+    val recv_task = RegEnable(req_out_task, 0.U.asTypeOf(new InstExInfo), dcache_req.fire)
 
     val recv_addr = recv_task.addr
 
@@ -108,7 +108,7 @@ class LDU extends ErythModule {
     val mask_frm_fwd = fwd_result.mask
     val data_frm_fwd = fwd_result.data
 
-    val axi_data = axi.r.bits.data
+    val axi_data = dcache_resp.bits.data
     val axi_mask_exp = MaskExpand(~mask_frm_fwd)
 
     val fwd_mask_exp = MaskExpand(mask_frm_fwd)
@@ -158,8 +158,6 @@ class LDU extends ErythModule {
 
     val r_has_err = recv_task.exception.exceptions.load_access_fault
 
-    axi.r.ready := state === sRECV || state === sDROP
-
     val recv_res_blk = WireInit(recv_task)
     recv_res_blk.res := res
     recv_res_blk.mask := mask
@@ -174,7 +172,7 @@ class LDU extends ErythModule {
     err_res_blk.exception.exceptions.load_access_fault := true.B
 
     // Commit
-    io.ldu_cmt.valid := (axi.r.fire && state === sRECV || state === sERR) && !redirect.valid
+    io.ldu_cmt.valid := (dcache_req.fire && state === sRECV || state === sERR) && !redirect.valid
     io.ldu_cmt.bits := Mux(state === sRECV, recv_res_blk, err_res_blk)
     
     io.rf_write.valid := io.ldu_cmt.valid && io.ldu_cmt.bits.rf_wen

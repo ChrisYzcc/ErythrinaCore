@@ -7,6 +7,7 @@ import erythrina.backend.InstExInfo
 import bus.axi4._
 import erythrina.memblock.StoreFwdBundle
 import erythrina.backend.Redirect
+import erythrina.memblock.dcache._
 
 class StoreQueue extends ErythModule {
     val io = IO(new Bundle {
@@ -22,12 +23,9 @@ class StoreQueue extends ErythModule {
         // Forward Store Res
         val sq_fwd = Vec(StoreQueSize, ValidIO(new StoreFwdBundle))
 
-        // to mem/D$
-        val axi = new Bundle {
-            val aw = DecoupledIO(new AXI4BundleA(AXI4Params.idBits))
-            val w = DecoupledIO(new AXI4BundleW(AXI4Params.dataBits))
-            val b = Flipped(DecoupledIO(new AXI4BundleB(AXI4Params.idBits)))
-        }
+        // to D$
+        val dcache_req = DecoupledIO(new DCacheReq)
+        val dcache_resp = Flipped(ValidIO(new DCacheResp))
 
         // redirect
         val redirect = Flipped(ValidIO(new Redirect))
@@ -159,55 +157,34 @@ class StoreQueue extends ErythModule {
         sq_fwd(i).bits.committed := rob_commited(i)
     }
 
-    // AXI Req
-    val axi = io.axi
+    // Dcache Req
+    val (dcache_req, dcache_resp) = (io.dcache_req, io.dcache_resp)
 
     val sREQ :: sACK :: Nil = Enum(2)
     val state = RegInit(sREQ)
 
-    val aw_has_acked = RegInit(false.B)
-    val w_has_acked = RegInit(false.B)
-
-    when (axi.aw.fire) {
-        aw_has_acked := true.B
-    }
-    when (axi.w.fire) {
-        w_has_acked := true.B
-    }
-    when (axi.b.fire) {
-        aw_has_acked := false.B
-        w_has_acked := false.B
-    }
-
-    val aw_acked = aw_has_acked || axi.aw.fire
-    val w_acked = w_has_acked || axi.w.fire
-
     switch (state) {
         is (sREQ) {
-            when (aw_acked && w_acked) {
+            when (dcache_req.fire) {
                 state := sACK
             }
         }
         is (sACK) {
-            when (axi.b.fire) {
+            when (dcache_resp.valid && dcache_resp.bits.cmd === DCacheCMD.WRITE) {
                 state := sREQ
             }
         }
     }
 
-    axi.aw.valid := state === sREQ && valids(deqPtrExt.value) && stu_finished(deqPtrExt.value) && rob_commited(deqPtrExt.value)
-    axi.aw.bits := 0.U.asTypeOf(axi.aw.bits)
-    axi.aw.bits.addr := entries(deqPtrExt.value).addr
-
-    axi.w.valid := state === sREQ && valids(deqPtrExt.value) && stu_finished(deqPtrExt.value) && rob_commited(deqPtrExt.value)
-    axi.w.bits := 0.U.asTypeOf(axi.w.bits)
-    axi.w.bits.data := entries(deqPtrExt.value).res
-    axi.w.bits.strb := entries(deqPtrExt.value).mask
-
-    axi.b.ready := state === sACK
+    dcache_req.valid := state === sREQ && valids(deqPtrExt.value) && stu_finished(deqPtrExt.value) && rob_commited(deqPtrExt.value)
+    dcache_req.bits := 0.U.asTypeOf(new DCacheReq)
+    dcache_req.bits.cmd := DCacheCMD.WRITE
+    dcache_req.bits.addr := entries(deqPtrExt.value).addr
+    dcache_req.bits.data := entries(deqPtrExt.value).res
+    dcache_req.bits.mask := entries(deqPtrExt.value).mask
 
     // deq
-    when (axi.b.fire) {
+    when (dcache_resp.valid && dcache_resp.bits.cmd === DCacheCMD.WRITE) {
         valids(deqPtrExt.value) := false.B
         stu_finished(deqPtrExt.value) := false.B
         rob_commited(deqPtrExt.value) := false.B

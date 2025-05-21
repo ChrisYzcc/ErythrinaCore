@@ -10,6 +10,7 @@ import erythrina.memblock.pipeline._
 import erythrina.backend.fu.EXUInfo
 import erythrina.backend.rob.ROBPtr
 import erythrina.backend.Redirect
+import erythrina.memblock.dcache._
 
 class Memblock extends ErythModule {
     val io = IO(new Bundle {
@@ -44,17 +45,7 @@ class Memblock extends ErythModule {
             val lq_except_infos = Vec(LoadQueSize, ValidIO(new ROBPtr))
         }
 
-        val axi = new Bundle {
-            val ldu = new Bundle {
-                val ar = DecoupledIO(new AXI4BundleA(AXI4Params.idBits))
-                val r = Flipped(DecoupledIO(new AXI4BundleR(AXI4Params.dataBits, AXI4Params.idBits)))
-            }
-            val stu = new Bundle {
-                val aw = DecoupledIO(new AXI4BundleA(AXI4Params.idBits))
-                val w = DecoupledIO(new AXI4BundleW(AXI4Params.dataBits))
-                val b = Flipped(DecoupledIO(new AXI4BundleB(AXI4Params.idBits)))
-            }
-        }
+        val axi = new AXI4
     })
     
     val ldu = Module(new LDU)
@@ -62,10 +53,17 @@ class Memblock extends ErythModule {
     val storeQueue = Module(new StoreQueue)
     val loadQueue = Module(new LoadQueue)
     val fwdUnit = Module(new StoreFwdUnit)
+    
+    val dcache = Module(new SimpleDCache)
+    val dcache_req_arb = Module(new RRArbiter(new DCacheReq, 2))
+
+    dcache.io.req <> dcache_req_arb.io.out
+    dcache.io.axi <> io.axi
 
     /* ---------------- LDU ---------------- */
+    ldu.io.dcache_req <> dcache_req_arb.io.in(0)
+    ldu.io.dcache_resp <> dcache.io.rsp
     ldu.io.req <> io.from_backend.ldu_req
-    ldu.io.axi <> io.axi.ldu
     ldu.io.ldu_cmt <> io.to_backend.ldu_cmt
     ldu.io.ldu_cmt <> loadQueue.io.ldu_cmt
     ldu.io.exu_info <> io.to_backend.ldu_info
@@ -92,8 +90,9 @@ class Memblock extends ErythModule {
         storeQueue.io.rob_commit(i).valid := io.from_backend.rob_commits(i).valid && io.from_backend.rob_commits(i).bits.isStroe
         storeQueue.io.rob_commit(i).bits := io.from_backend.rob_commits(i).bits.sqPtr
     }
-
-    storeQueue.io.axi <> io.axi.stu
+    
+    storeQueue.io.dcache_req <> dcache_req_arb.io.in(1)
+    storeQueue.io.dcache_resp <> dcache.io.rsp
     storeQueue.io.redirect <> io.from_backend.redirect
     storeQueue.io.sq_fwd <> fwdUnit.io.sq_fwd
 

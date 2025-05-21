@@ -19,4 +19,5 @@ class DCacheReq extends ErythBundle {
 
 class DCacheResp extends ErythBundle {
     val data = UInt(XLEN.W)
+    val cmd = UInt(CmdBits.W)
 }
