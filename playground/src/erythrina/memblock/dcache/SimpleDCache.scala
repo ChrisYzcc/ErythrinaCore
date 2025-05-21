@@ -79,6 +79,8 @@ class DataArray extends ErythModule {
 }
 
 class SimpleDCacheTask extends ErythBundle {
+    val content_valid = Bool()
+    
     val addr = UInt(XLEN.W)
     val data = UInt(XLEN.W)
     val mask = UInt(MASKLEN.W)
@@ -105,6 +107,7 @@ class Stage1 extends ErythModule {
     io.in.ready := io.out.ready
 
     val task = WireInit(0.U.asTypeOf(new SimpleDCacheTask))
+    task.content_valid := io.in.valid
     task.addr := io.in.bits.addr
     task.data := io.in.bits.data
     task.mask := io.in.bits.mask
@@ -130,7 +133,7 @@ class Stage2 extends ErythModule {
 
         val meta_rsp = Flipped(ValidIO(Vec(ways, new MetaEntry)))
         val data_rsp = Flipped(ValidIO(Vec(ways, Vec(CachelineSize / 4, UInt(XLEN.W)))))
-
+ 
         // forward from s3
         val forward = Flipped(ValidIO(new Bundle {
             val meta = new MetaEntry
@@ -215,6 +218,8 @@ class Stage3 extends ErythModule {
     val meta = io.in.bits.hit_or_evict_meta
     val cacheline = in.bits.hit_or_evict_cacheline
 
+    val content_valid = in.bits.content_valid
+
     /* ------------- Ctrl Signals ------------- */
     val reset_done = Wire(Bool())
 
@@ -237,7 +242,7 @@ class Stage3 extends ErythModule {
             }
         }
         is (sRSP) {
-            when (out.valid) {
+            when (out.valid || !content_valid) {
                 state := sIDLE
             }
         }
@@ -249,7 +254,7 @@ class Stage3 extends ErythModule {
 
     switch (state_r) {
         is (sIDLE_R) {
-            when (RegNext(in.fire) && (!in.bits.hit || !in.bits.cacheable && in.bits.cmd === DCacheCMD.READ)) {
+            when (RegNext(in.fire) && (!in.bits.hit || !in.bits.cacheable && in.bits.cmd === DCacheCMD.READ) && content_valid) {
                 state_r := sREQ_R
             }
         }
@@ -276,7 +281,7 @@ class Stage3 extends ErythModule {
 
     switch (state_w) {
         is (sIDLE_W) {
-            when (RegNext(in.fire) && (!in.bits.hit && meta.dirty || !in.bits.cacheable && in.bits.cmd === DCacheCMD.WRITE)) {
+            when (RegNext(in.fire) && (!in.bits.hit && meta.dirty || !in.bits.cacheable && in.bits.cmd === DCacheCMD.WRITE) && content_valid) {
                 state_w := sREQ_W
             }
         } 
@@ -310,7 +315,7 @@ class Stage3 extends ErythModule {
 
     val ar_len = RegInit(0.U(AXI4Params.lenBits.W))
     when (RegNext(in.fire)) {
-        ar_len := Mux(in.bits.cacheable, (CachelineSize / 4).U, 0.U)
+        ar_len := Mux(in.bits.cacheable, (CachelineSize / 4 - 1).U, 0.U)
     }
 
     val r_idx = RegInit(0.U(log2Ceil(CachelineSize / 4).W))
@@ -382,7 +387,7 @@ class Stage3 extends ErythModule {
     val mmio_ready = !in.bits.cacheable && (in.bits.cmd === DCacheCMD.READ && state_r === sFINISH_R || in.bits.cmd === DCacheCMD.WRITE && state_w === sFINISH_W)
     val mmio_data = recv_data_vec(0)
 
-    out.valid := state === sRSP && (hit_ready || miss_ready || mmio_ready)
+    out.valid := state === sRSP && (hit_ready || miss_ready || mmio_ready) && content_valid
     out.bits.data := MuxCase(0.U, List(
         hit_ready -> hit_data,
         miss_ready -> miss_data,
