@@ -144,7 +144,7 @@ class Stage2 extends ErythModule {
     val (in, out) = (io.in, io.out)
 
     in.ready := out.ready
-    out.valid := RegNext(in.valid)
+    out.valid := true.B
     out.bits := in.bits
 
     val lru_seq = Seq.fill(sets)(Module(new PLRU))
@@ -428,7 +428,7 @@ class Stage3 extends ErythModule {
     val new_data = MaskExpand(in.bits.mask) & in.bits.data | MaskExpand(~in.bits.mask) & Mux(in.bits.hit, cacheline(word_offset), recv_data_vec(word_offset))
     
     for (i <- 0 until CachelineSize / 4) {
-        new_cacheline(i) := Mux(i.U === offset, 
+        new_cacheline(i) := Mux(i.U === word_offset, 
             new_data,
             Mux(in.bits.hit, cacheline(i), recv_data_vec(i))
         )
