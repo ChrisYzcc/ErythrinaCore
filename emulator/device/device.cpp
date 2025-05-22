@@ -1,4 +1,5 @@
 #include "device.h"
+#include "emu.h"
 #include <cassert>
 #include <cstdint>
 #include <cstring>
@@ -65,7 +66,10 @@ uint32_t device_write(paddr_t addr, uint32_t data, uint32_t mask) {
 // serial
 static uint8_t *serial_base = nullptr;
 void serial_handler(uint32_t offset, int operation) {
-    assert(operation == 1); // only write
+    if (operation != 1) {
+        emu->trap(TRAP_MEM_ERR, SERIAL_BASE + offset);
+        return;
+    }
     putchar(serial_base[offset]);
     fflush(stdout);
 }
