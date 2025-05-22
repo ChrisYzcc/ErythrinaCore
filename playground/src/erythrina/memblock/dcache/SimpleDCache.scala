@@ -131,6 +131,7 @@ class Stage2 extends ErythModule {
 
         val forward = Flipped(ValidIO(new Bundle {
             val fwd_meta = new MetaEntry
+            val fwd_idx = UInt(log2Ceil(sets).W)
             val fwd_way = UInt(log2Ceil(ways).W)
         }))
     })
@@ -161,7 +162,7 @@ class Stage2 extends ErythModule {
     assert(PopCount(meta_hit_vec) <= 1.U, "More than one hit in meta array")
 
     val fwd = io.forward
-    val fwd_hit = (fwd.bits.fwd_meta.tag === get_tag(in.bits.addr))
+    val fwd_hit = fwd.bits.fwd_meta.tag === get_tag(in.bits.addr) && fwd.bits.fwd_idx === idx
     val fwd_hit_way = fwd.bits.fwd_way
 
     val hit = meta_hit || fwd_hit
@@ -221,6 +222,7 @@ class Stage3 extends ErythModule {
 
         val forward = ValidIO(new Bundle {
             val fwd_meta = new MetaEntry
+            val fwd_idx = UInt(log2Ceil(sets).W)
             val fwd_way = UInt(log2Ceil(ways).W)
         })
 
@@ -472,6 +474,7 @@ class Stage3 extends ErythModule {
     io.forward.valid := out.valid
     io.forward.bits.fwd_meta := new_meta
     io.forward.bits.fwd_way := in.bits.hit_or_evict_way
+    io.forward.bits.fwd_idx := get_idx(in.bits.addr)
 }
 
 class SimpleDCache extends ErythModule {
