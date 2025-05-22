@@ -91,122 +91,125 @@ class SimpleDCacheTask extends ErythBundle {
     val hit_or_evict_meta = new MetaEntry
     val hit_or_evict_way = UInt(log2Ceil(ways).W)
 
-    val hit_or_evict_cacheline = Vec(CachelineSize / 4, UInt(XLEN.W))
 }
 
-// Stage1: Req for Meta & Data
+// Stage1: Req for Meta
 class Stage1 extends ErythModule {
     val io = IO(new Bundle {
         val in = Flipped(DecoupledIO(new DCacheReq))
         val out = DecoupledIO(new SimpleDCacheTask)
 
-        val meta_req = ValidIO(UInt(log2Ceil(sets).W))
-        val data_req = ValidIO(UInt(log2Ceil(sets).W))
+        val meta_rd_req = ValidIO(UInt(log2Ceil(sets).W))
     })
 
-    io.in.ready := io.out.ready
+    val (in, out) = (io.in, io.out)
+    val meta_rd_req = io.meta_rd_req
 
     val task = WireInit(0.U.asTypeOf(new SimpleDCacheTask))
-    task.content_valid := io.in.valid
-    task.addr := io.in.bits.addr
-    task.data := io.in.bits.data
-    task.mask := io.in.bits.mask
-    task.cmd := io.in.bits.cmd
+    task.content_valid := in.valid
+    task.addr := in.bits.addr
+    task.data := in.bits.data
+    task.mask := in.bits.mask
+    task.cmd := in.bits.cmd
+    
+    meta_rd_req.valid := in.valid && out.ready
+    meta_rd_req.bits := get_idx(task.addr)
 
-    // req meta & data
-    io.meta_req.valid := io.in.valid && io.out.ready
-    io.meta_req.bits := get_idx(io.in.bits.addr)
-
-    io.data_req.valid := io.in.valid && io.out.ready
-    io.data_req.bits := get_idx(io.in.bits.addr)
-
-    // out
-    io.out.valid := io.in.valid
-    io.out.bits := task
+    in.ready := out.ready
+    out.valid := in.valid
+    out.bits := task
 }
 
-// Stage2: hit check & victim choose
+// Stage2: Check for Hit & Req for Data
 class Stage2 extends ErythModule {
     val io = IO(new Bundle {
         val in = Flipped(DecoupledIO(new SimpleDCacheTask))
         val out = DecoupledIO(new SimpleDCacheTask)
 
-        val meta_rsp = Flipped(ValidIO(Vec(ways, new MetaEntry)))
-        val data_rsp = Flipped(ValidIO(Vec(ways, Vec(CachelineSize / 4, UInt(XLEN.W)))))
- 
-        // forward from s3
+        val meta_rd_rsp = Flipped(ValidIO(Vec(ways, new MetaEntry)))
+        val data_rd_req = ValidIO(UInt(log2Ceil(sets).W))
+
         val forward = Flipped(ValidIO(new Bundle {
-            val meta = new MetaEntry
-            val data = Vec(CachelineSize / 4, UInt(XLEN.W))
+            val fwd_meta = new MetaEntry
+            val fwd_way = UInt(log2Ceil(ways).W)
         }))
     })
 
     val (in, out) = (io.in, io.out)
+    val meta_rd_rsp = io.meta_rd_rsp
+    val data_rd_req = io.data_rd_req
 
-    in.ready := out.ready
-    out.valid := true.B
-    out.bits := in.bits
-
-    val lru_seq = Seq.fill(sets)(Module(new PLRU))
-    val lru_oldest_vec = VecInit(lru_seq.map(_.io.oldest))
+    val plru_seq = Seq.fill(sets)(Module(new PLRU))
+    val oldest_way_vec = VecInit(plru_seq.map(_.io.oldest))
 
     val idx = get_idx(in.bits.addr)
 
-    // hit check
-    val req_tag = get_tag(in.bits.addr)
-
-    val (meta_rsp, data_rsp) = (io.meta_rsp.bits, io.data_rsp.bits)
-    val forward = io.forward
-    val hit_vec = meta_rsp.map{
-        m => m.valid && (m.tag === req_tag)
+    // check for hit
+    val meta_hit_vec = meta_rd_rsp.bits.map{
+        case m => 
+            m.valid && (m.tag === get_tag(in.bits.addr))
     }
-    val hit_way = PriorityEncoder(hit_vec)
-    assert(PopCount(hit_vec) <= 1.U, "More than one hit in the same set")
+    val meta_hit = meta_hit_vec.reduce(_ || _)
+    val meta_hit_way = PriorityEncoder(meta_hit_vec)
+    assert(PopCount(meta_hit_vec) <= 1.U, "More than one hit in meta array")
 
-    val fwd_hit = forward.valid && (forward.bits.meta.tag === req_tag)
+    val fwd = io.forward
+    val fwd_hit = (fwd.bits.fwd_meta.tag === get_tag(in.bits.addr))
+    val fwd_hit_way = fwd.bits.fwd_way
 
-    val hit = hit_vec.reduce(_||_) || fwd_hit
-    val cacheable = in.bits.addr >= CacheableRange._1.U && in.bits.addr <= CacheableRange._2.U
+    val hit = meta_hit || fwd_hit
+    val hit_way = Mux(fwd_hit, fwd_hit_way, meta_hit_way)
+    val hit_meta = Mux(meta_hit, meta_rd_rsp.bits(meta_hit_way), fwd.bits.fwd_meta)
 
-    out.bits.hit := hit
-    out.bits.cacheable := cacheable
+    val cascheable = in.bits.addr >= CacheableRange._1.U && in.bits.addr <= CacheableRange._2.U
 
-    val hit_cacheline = Mux(fwd_hit, forward.bits.data, data_rsp(hit_way))
-    out.bits.hit_or_evict_cacheline := Mux(hit, hit_cacheline, data_rsp(lru_oldest_vec(idx)))
+    // evict & update
+    val evict_way = oldest_way_vec(idx)
+    val evict_meta = meta_rd_rsp.bits(evict_way)
 
-    // choose victim
-    out.bits.hit_or_evict_meta := meta_rsp(lru_oldest_vec(idx))
-    out.bits.hit_or_evict_way := Mux(hit, hit_way, lru_oldest_vec(idx))
-
-    // update plru
-    val update_way = Mux(hit, hit_way, lru_oldest_vec(idx))
     for (i <- 0 until sets) {
-        lru_seq(i).io.update.valid := out.fire && (idx === i.U) && !fwd_hit
-        lru_seq(i).io.update.bits := update_way
+        plru_seq(i).io.update.valid := i.U === idx && in.bits.content_valid
+        plru_seq(i).io.update.bits := Mux(hit, hit_way, evict_way)
     }
+
+    // req for data
+    data_rd_req.valid := in.bits.content_valid && out.ready
+    data_rd_req.bits := idx
+
+    val task = WireInit(in.bits)
+    task.hit := hit
+    task.cacheable := cascheable
+    task.hit_or_evict_meta := Mux(hit, hit_meta, evict_meta)
+    task.hit_or_evict_way := Mux(hit, hit_way, evict_way)
+
+    in.ready := !in.bits.content_valid || out.ready
+    out.valid := true.B
+    out.bits := task
 }
 
-// Stage3: cmt for hit & refill for miss
+// Stage3: response for hit, refill for miss
 class Stage3 extends ErythModule {
     val io = IO(new Bundle {
         val in = Flipped(DecoupledIO(new SimpleDCacheTask))
         val out = ValidIO(new DCacheResp)
 
+        val data_rd_rsp = Flipped(ValidIO(Vec(ways, Vec(CachelineSize / 4, UInt(XLEN.W)))))
+
+        val data_wr_req = ValidIO(new Bundle{
+            val idx = UInt(log2Ceil(sets).W)
+            val way = UInt(log2Ceil(ways).W)
+            val data = Vec(CachelineSize / 4, UInt(XLEN.W))
+        })
+        
+        val meta_wr_req = ValidIO(new Bundle{
+            val idx = UInt(log2Ceil(sets).W)
+            val way = UInt(log2Ceil(ways).W)
+            val meta = new MetaEntry
+        })
+
         val forward = ValidIO(new Bundle {
-            val meta = new MetaEntry
-            val data = Vec(CachelineSize / 4, UInt(XLEN.W))
-        })
-
-        val meta_wr_req = ValidIO(new Bundle {
-            val idx = UInt(log2Ceil(sets).W)
-            val way = UInt(log2Ceil(ways).W)
-            val meta = new MetaEntry
-        })
-
-        val data_wr_req = ValidIO(new Bundle {
-            val idx = UInt(log2Ceil(sets).W)
-            val way = UInt(log2Ceil(ways).W)
-            val data = Vec(CachelineSize / 4, UInt(XLEN.W))
+            val fwd_meta = new MetaEntry
+            val fwd_way = UInt(log2Ceil(ways).W)
         })
 
         val axi = new AXI4
@@ -215,35 +218,32 @@ class Stage3 extends ErythModule {
     val (in, out) = (io.in, io.out)
     val axi = io.axi
 
-    val meta = io.in.bits.hit_or_evict_meta
-    val cacheline = in.bits.hit_or_evict_cacheline
-
+    val is_read = in.bits.cmd === DCacheCMD.READ
+    val is_write = in.bits.cmd === DCacheCMD.WRITE
+    val hit = in.bits.hit
+    val cacheable = in.bits.cacheable
     val content_valid = in.bits.content_valid
+
+    val meta = in.bits.hit_or_evict_meta
+    val way = in.bits.hit_or_evict_way
+    val cacheline = io.data_rd_rsp.bits(way)
+
+    val set_idx = get_idx(in.bits.addr)
 
     /* ------------- Ctrl Signals ------------- */
     val reset_done = Wire(Bool())
-
+    
     val wr_last = Wire(Bool())
 
     /* ------------- FSM Ctrl ------------- */
     // main FSM
-    val sRESET :: sIDLE :: sRSP :: Nil = Enum(3)
+    val sRESET :: sWORK :: Nil = Enum(2)
     val state = RegInit(sRESET)
 
     switch (state) {
         is (sRESET) {
             when (reset_done) {
-                state := sIDLE
-            }
-        }
-        is (sIDLE) {
-            when (in.fire) {
-                state := sRSP
-            }
-        }
-        is (sRSP) {
-            when (out.valid || !content_valid) {
-                state := sIDLE
+                state := sWORK
             }
         }
     }
@@ -254,7 +254,7 @@ class Stage3 extends ErythModule {
 
     switch (state_r) {
         is (sIDLE_R) {
-            when (RegNext(in.fire) && (!in.bits.hit || !in.bits.cacheable && in.bits.cmd === DCacheCMD.READ) && content_valid) {
+            when (RegNext(in.fire) && (!hit || !cacheable && is_read) && content_valid) {
                 state_r := sREQ_R
             }
         }
@@ -281,10 +281,10 @@ class Stage3 extends ErythModule {
 
     switch (state_w) {
         is (sIDLE_W) {
-            when (RegNext(in.fire) && (!in.bits.hit && meta.dirty || !in.bits.cacheable && in.bits.cmd === DCacheCMD.WRITE) && content_valid) {
+            when (RegNext(in.fire) && (!hit || !cacheable && is_write) && content_valid) {
                 state_w := sREQ_W
             }
-        } 
+        }
         is (sREQ_W) {
             when (axi.aw.fire && axi.w.fire) {
                 state_w := sRECV_W
@@ -307,22 +307,25 @@ class Stage3 extends ErythModule {
 
     val ar_addr = RegInit(0.U(XLEN.W))
     when (RegNext(in.fire)) {
-        ar_addr := Mux(in.bits.cacheable,
-                    Cat(in.bits.addr(XLEN - 1, log2Ceil(CachelineSize)), 0.U(log2Ceil(CachelineSize).W)),
+        ar_addr := Mux(cacheable,
+                    get_cacheline_addr(in.bits.addr),
                     in.bits.addr
                 )
     }
 
     val ar_len = RegInit(0.U(AXI4Params.lenBits.W))
     when (RegNext(in.fire)) {
-        ar_len := Mux(in.bits.cacheable, (CachelineSize / 4 - 1).U, 0.U)
+        ar_len := Mux(cacheable,
+                    (CachelineSize / 4 - 1).U,
+                    0.U
+                )
     }
 
-    val r_idx = RegInit(0.U(log2Ceil(CachelineSize / 4).W))
+    val r_ptr = RegInit(0.U(log2Ceil(CachelineSize / 4).W))
     when (axi.ar.fire) {
-        r_idx := 0.U
-    }.elsewhen(axi.r.fire) {
-        r_idx := r_idx + 1.U
+        r_ptr := 0.U
+    }.elsewhen (axi.r.fire) {
+        r_ptr := r_ptr + 1.U
     }
 
     axi.ar.valid := state_r === sREQ_R
@@ -333,16 +336,15 @@ class Stage3 extends ErythModule {
 
     axi.r.ready := state_r === sRECV_R
     when (axi.r.fire) {
-        recv_data_vec(r_idx) := axi.r.bits.data
+        recv_data_vec(r_ptr) := axi.r.bits.data
     }
 
     /* ------------- WRITE ------------- */
-    val idx = get_idx(in.bits.addr)
     val aw_addr = RegInit(0.U(XLEN.W))
     when (RegNext(in.fire)) {
-        aw_addr := Mux(in.bits.cacheable,
-                    Cat(in.bits.addr(XLEN - 1, log2Ceil(CachelineSize)), 0.U(log2Ceil(CachelineSize).W)),
-                    Cat(meta.tag, idx, 0.U(log2Ceil(CachelineSize).W))
+        aw_addr := Mux(cacheable,
+                    get_cacheline_addr(in.bits.addr),
+                    Cat(meta.tag, set_idx, 0.U(log2Ceil(CachelineSize).W))
                 )
     }.elsewhen(axi.b.fire) {
         aw_addr := aw_addr + 4.U
@@ -350,14 +352,17 @@ class Stage3 extends ErythModule {
 
     val w_len = RegInit(0.U(AXI4Params.lenBits.W))
     when (RegNext(in.fire)) {
-        w_len := Mux(in.bits.cacheable, (CachelineSize / 4).U, 0.U)
+        w_len := Mux(cacheable,
+                    (CachelineSize / 4).U,
+                    0.U
+                )
     }
 
-    val w_idx = RegInit(0.U(log2Ceil(CachelineSize / 4).W))
+    val w_ptr = RegInit(0.U(log2Ceil(CachelineSize / 4).W))
     when (RegNext(in.fire)) {
-        w_idx := 0.U
-    }.elsewhen(axi.b.fire) {
-        w_idx := w_idx + 1.U
+        w_ptr := 0.U
+    }.elsewhen (axi.b.fire) {
+        w_ptr := w_ptr + 1.U
     }
 
     axi.aw.valid := state_w === sREQ_W
@@ -367,27 +372,27 @@ class Stage3 extends ErythModule {
 
     axi.w.valid := state_w === sREQ_W
     axi.w.bits := 0.U.asTypeOf(axi.w.bits)
-    axi.w.bits.data := Mux(in.bits.cacheable, cacheline(w_idx), in.bits.data)
-    axi.w.bits.strb := Mux(in.bits.cacheable, "b1111".U, in.bits.mask)
+    axi.w.bits.data := Mux(cacheable, cacheline(w_ptr), in.bits.data)
+    axi.w.bits.strb := Mux(cacheable, "b1111".U, in.bits.mask)
 
     axi.b.ready := state_w === sRECV_W
 
-    wr_last := Mux(in.bits.cacheable, w_idx === (CachelineSize / 4 - 1).U, true.B)
+    wr_last := Mux(cacheable, w_ptr === (CachelineSize / 4 - 1).U, true.B)
 
     /* ------------- Response to Core & Stage Control ------------- */
     val offset = get_cacheline_offset(in.bits.addr)
     val word_offset = offset(log2Ceil(CachelineSize) - 1, 2)
 
-    val hit_ready = in.bits.hit
+    val hit_ready = hit
     val hit_data = cacheline(word_offset)
 
-    val miss_ready = !in.bits.hit && state_r === sFINISH_R && (!meta.dirty || state_w === sFINISH_W)
+    val miss_ready = !hit && state_r === sFINISH_R && (!meta.dirty || state_w === sFINISH_W)
     val miss_data = recv_data_vec(word_offset)
 
-    val mmio_ready = !in.bits.cacheable && (in.bits.cmd === DCacheCMD.READ && state_r === sFINISH_R || in.bits.cmd === DCacheCMD.WRITE && state_w === sFINISH_W)
+    val mmio_ready = !cacheable && (is_read && state_r === sFINISH_R || is_write && state_w === sFINISH_W)
     val mmio_data = recv_data_vec(0)
 
-    out.valid := state === sRSP && (hit_ready || miss_ready || mmio_ready) && content_valid
+    out.valid := (hit_ready || miss_ready || mmio_ready) && content_valid
     out.bits.data := MuxCase(0.U, List(
         hit_ready -> hit_data,
         miss_ready -> miss_data,
@@ -395,7 +400,8 @@ class Stage3 extends ErythModule {
     ))
     out.bits.cmd := in.bits.cmd
 
-    in.ready := state === sIDLE
+    val need_delay = cacheable && (is_write || !hit)
+    in.ready := (!content_valid || Mux(need_delay, RegNext(out.valid), out.valid)) && state === sWORK
 
     /* ------------- Write Meta & Cacheline ------------- */
     val (meta_wr_req, data_wr_req) = (io.meta_wr_req, io.data_wr_req)
@@ -403,7 +409,7 @@ class Stage3 extends ErythModule {
     // Meta
     val new_meta = WireInit(0.U.asTypeOf(new MetaEntry))
     new_meta.valid := true.B
-    new_meta.dirty := Mux(in.bits.cmd === DCacheCMD.WRITE, true.B, false.B)
+    new_meta.dirty := is_write
     new_meta.tag := get_tag(in.bits.addr)
 
     // reset
@@ -418,15 +424,15 @@ class Stage3 extends ErythModule {
     }
     reset_done := reset_idx === (sets - 1).U && reset_way === (ways - 1).U
 
-    meta_wr_req.valid := state === sRESET || out.valid
+    meta_wr_req.valid := state === sRESET || out.valid && cacheable
     meta_wr_req.bits.idx := Mux(state === sRESET, reset_idx, get_idx(in.bits.addr))
     meta_wr_req.bits.way := Mux(state === sRESET, reset_way, in.bits.hit_or_evict_way)
-    meta_wr_req.bits.meta := Mux(state === sRESET, new_meta, 0.U.asTypeOf(new MetaEntry))
-    
+    meta_wr_req.bits.meta := Mux(state === sRESET, 0.U.asTypeOf(new MetaEntry), new_meta)
+
     // Data
     val new_cacheline = WireInit(0.U.asTypeOf(Vec(CachelineSize / 4, UInt(XLEN.W))))
     val new_data = MaskExpand(in.bits.mask) & in.bits.data | MaskExpand(~in.bits.mask) & Mux(in.bits.hit, cacheline(word_offset), recv_data_vec(word_offset))
-    
+
     for (i <- 0 until CachelineSize / 4) {
         new_cacheline(i) := Mux(i.U === word_offset, 
             new_data,
@@ -434,15 +440,15 @@ class Stage3 extends ErythModule {
         )
     }
 
-    data_wr_req.valid := out.valid
+    data_wr_req.valid := out.valid && cacheable
     data_wr_req.bits.idx := get_idx(in.bits.addr)
     data_wr_req.bits.way := in.bits.hit_or_evict_way
     data_wr_req.bits.data := new_cacheline
 
     /* ------------- Forward ------------- */
     io.forward.valid := out.valid
-    io.forward.bits.meta := new_meta
-    io.forward.bits.data := new_cacheline   
+    io.forward.bits.fwd_meta := new_meta
+    io.forward.bits.fwd_way := in.bits.hit_or_evict_way
 }
 
 class SimpleDCache extends ErythModule {
@@ -458,25 +464,24 @@ class SimpleDCache extends ErythModule {
     val (req, rsp) = (io.req, io.rsp)
     val axi = io.axi
 
-    val stage1 = Module(new Stage1)
-    val stage2 = Module(new Stage2)
-    val stage3 = Module(new Stage3)
-
+    val s1 = Module(new Stage1)
+    val s2 = Module(new Stage2)
+    val s3 = Module(new Stage3)
     val meta_array = Module(new MetaArray)
     val data_array = Module(new DataArray)
 
-    stage1.io.in <> req
-    stage1.io.meta_req <> meta_array.io.rd_req
-    stage1.io.data_req <> data_array.io.rd_req
-    StageConnect(stage1.io.out, stage2.io.in)
+    s1.io.in <> req
+    s1.io.meta_rd_req <> meta_array.io.rd_req
+    StageConnect(s1.io.out, s2.io.in)
 
-    stage2.io.meta_rsp <> meta_array.io.rd_rsp
-    stage2.io.data_rsp <> data_array.io.rd_rsp
-    StageConnect(stage2.io.out, stage3.io.in)
+    s2.io.meta_rd_rsp <> meta_array.io.rd_rsp
+    s2.io.data_rd_req <> data_array.io.rd_req
+    s2.io.forward <> s3.io.forward
+    StageConnect(s2.io.out, s3.io.in)
 
-    stage3.io.axi <> axi
-    stage3.io.out <> rsp
-    stage3.io.forward <> stage2.io.forward
-    stage3.io.meta_wr_req <> meta_array.io.wr_req
-    stage3.io.data_wr_req <> data_array.io.wr_req
+    s3.io.data_rd_rsp <> data_array.io.rd_rsp
+    s3.io.meta_wr_req <> meta_array.io.wr_req
+    s3.io.data_wr_req <> data_array.io.wr_req
+    s3.io.out <> rsp
+    s3.io.axi <> axi
 }

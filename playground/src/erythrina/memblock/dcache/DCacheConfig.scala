@@ -18,6 +18,10 @@ object DCacheParams {
         offset
     }
 
+    def get_cacheline_addr(addr:UInt): UInt = {
+        Cat(addr(XLEN - 1, log2Ceil(CachelineSize)), 0.U(log2Ceil(CachelineSize).W))
+    }
+
     var ways = 4
     var sets = 16
     var CachelineSize = 32
