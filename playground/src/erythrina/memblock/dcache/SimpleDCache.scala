@@ -33,9 +33,10 @@ class MetaArray extends ErythModule {
     })
 
     val meta_array = Seq.fill(ways)(SyncReadMem(sets, new MetaEntry))
+    val rd_req_reg = RegEnable(io.rd_req.bits, 0.U, io.rd_req.valid)
 
     // Read
-    val rd_rsp = VecInit(meta_array.map(_.read(io.rd_req.bits, io.rd_req.valid)))
+    val rd_rsp = VecInit(meta_array.map(_.read(Mux(io.rd_req.valid, io.rd_req.bits, rd_req_reg))))
     io.rd_rsp.valid := RegNext(io.rd_req.valid)
     io.rd_rsp.bits := rd_rsp
 
@@ -62,9 +63,10 @@ class DataArray extends ErythModule {
     })
 
     val data_array = Seq.fill(ways)(SyncReadMem(sets, Vec(CachelineSize / 4, UInt(XLEN.W))))
+    val rd_req_reg = RegEnable(io.rd_req.bits, 0.U, io.rd_req.valid)
 
     // Read
-    val rd_rsp = VecInit(data_array.map(_.read(io.rd_req.bits, io.rd_req.valid)))
+    val rd_rsp = VecInit(data_array.map(_.read(Mux(io.rd_req.valid, io.rd_req.bits, rd_req_reg))))
     io.rd_rsp.valid := RegNext(io.rd_req.valid)
     io.rd_rsp.bits := rd_rsp
 
