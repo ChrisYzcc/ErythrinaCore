@@ -417,7 +417,7 @@ class Stage3 extends ErythModule {
     val mmio_data = recv_data_vec(0)
 
     ready_to_write := hit_ready && is_write || miss_ready || mmio_ready
-    out.valid := content_valid && (state === sWORK && hit_ready || state === sUPDATE)
+    out.valid := content_valid && (state === sWORK && hit_ready && is_read || state === sUPDATE)
 
     out.bits.data := MuxCase(0.U, List(
         hit_ready -> hit_data,
