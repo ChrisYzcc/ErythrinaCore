@@ -37,6 +37,8 @@ class LoadQueue extends ErythModule {
     val valids = RegInit(VecInit(Seq.fill(LoadQueSize)(false.B)))
     val ldu_finished = RegInit(VecInit(Seq.fill(LoadQueSize)(false.B)))
 
+    val redirect = io.redirect
+
     // ptr
     val allocPtrExt = RegInit(VecInit((0 until DispatchWidth).map(_.U.asTypeOf(new LQPtr))))
     val deqPtrExt = RegInit(0.U.asTypeOf(new LQPtr))
@@ -100,7 +102,7 @@ class LoadQueue extends ErythModule {
     }
 
     for (i <- 0 until LoadQueSize) {
-        lq_exc_infos(i).valid := valids(i) && ldu_finished(i) && entries(i).addr === st_addr && st_req.valid && st_req.bits.robPtr < entries(i).robPtr
+        lq_exc_infos(i).valid := valids(i) && ldu_finished(i) && entries(i).addr === st_addr && st_req.valid && st_req.bits.robPtr < entries(i).robPtr && !redirect.valid
         lq_exc_infos(i).bits := entries(i).robPtr
     }
 
@@ -110,7 +112,6 @@ class LoadQueue extends ErythModule {
     }
 
     // redirect
-    val redirect = io.redirect
     when (redirect.valid) {
         for (i <- 0 until LoadQueSize) {
             entries(i) := 0.U.asTypeOf(new InstExInfo)
