@@ -172,7 +172,7 @@ class LDU extends ErythModule {
     err_res_blk.exception.exceptions.load_access_fault := true.B
 
     // Commit
-    io.ldu_cmt.valid := (dcache_resp.valid && state === sRECV || state === sERR) && !redirect.valid
+    io.ldu_cmt.valid := (dcache_resp.valid && dcache_resp.bits.cmd === DCacheCMD.READ && state === sRECV || state === sERR) && !redirect.valid
     io.ldu_cmt.bits := Mux(state === sRECV, recv_res_blk, err_res_blk)
     
     io.rf_write.valid := io.ldu_cmt.valid && io.ldu_cmt.bits.rf_wen

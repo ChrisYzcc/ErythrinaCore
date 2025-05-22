@@ -182,7 +182,7 @@ class Stage2 extends ErythModule {
     task.hit_or_evict_meta := Mux(hit, hit_meta, evict_meta)
     task.hit_or_evict_way := Mux(hit, hit_way, evict_way)
 
-    in.ready := !in.bits.content_valid || out.ready
+    in.ready := out.ready
     out.valid := true.B
     out.bits := task
 }
@@ -221,6 +221,7 @@ class Stage3 extends ErythModule {
     val is_read = in.bits.cmd === DCacheCMD.READ
     val is_write = in.bits.cmd === DCacheCMD.WRITE
     val hit = in.bits.hit
+    val dirty = in.bits.hit_or_evict_meta.dirty
     val cacheable = in.bits.cacheable
     val content_valid = in.bits.content_valid
 
@@ -234,10 +235,11 @@ class Stage3 extends ErythModule {
     val reset_done = Wire(Bool())
     
     val wr_last = Wire(Bool())
+    val ready_to_write = Wire(Bool())
 
     /* ------------- FSM Ctrl ------------- */
     // main FSM
-    val sRESET :: sWORK :: Nil = Enum(2)
+    val sRESET :: sWORK :: sUPDATE :: Nil = Enum(3)
     val state = RegInit(sRESET)
 
     switch (state) {
@@ -245,6 +247,14 @@ class Stage3 extends ErythModule {
             when (reset_done) {
                 state := sWORK
             }
+        }
+        is (sWORK) {
+            when (content_valid && ready_to_write) {
+                state := sUPDATE
+            }
+        }
+        is (sUPDATE) {
+            state := sWORK
         }
     }
 
@@ -281,7 +291,7 @@ class Stage3 extends ErythModule {
 
     switch (state_w) {
         is (sIDLE_W) {
-            when (RegNext(in.fire) && (!hit || !cacheable && is_write) && content_valid) {
+            when (RegNext(in.fire) && (!hit && dirty || !cacheable && is_write) && content_valid) {
                 state_w := sREQ_W
             }
         }
@@ -392,7 +402,9 @@ class Stage3 extends ErythModule {
     val mmio_ready = !cacheable && (is_read && state_r === sFINISH_R || is_write && state_w === sFINISH_W)
     val mmio_data = recv_data_vec(0)
 
-    out.valid := (hit_ready || miss_ready || mmio_ready) && content_valid
+    ready_to_write := hit_ready && is_write || miss_ready || mmio_ready
+    out.valid := content_valid && (state === sWORK && hit_ready || state === sUPDATE)
+
     out.bits.data := MuxCase(0.U, List(
         hit_ready -> hit_data,
         miss_ready -> miss_data,
@@ -400,8 +412,7 @@ class Stage3 extends ErythModule {
     ))
     out.bits.cmd := in.bits.cmd
 
-    val need_delay = cacheable && (is_write || !hit)
-    in.ready := (!content_valid || Mux(need_delay, RegNext(out.valid), out.valid)) && state === sWORK
+    in.ready := (!content_valid || out.valid) && state =/= sRESET
 
     /* ------------- Write Meta & Cacheline ------------- */
     val (meta_wr_req, data_wr_req) = (io.meta_wr_req, io.data_wr_req)
@@ -409,7 +420,7 @@ class Stage3 extends ErythModule {
     // Meta
     val new_meta = WireInit(0.U.asTypeOf(new MetaEntry))
     new_meta.valid := true.B
-    new_meta.dirty := is_write
+    new_meta.dirty := Mux(is_write, true.B, meta.dirty)
     new_meta.tag := get_tag(in.bits.addr)
 
     // reset
@@ -424,7 +435,7 @@ class Stage3 extends ErythModule {
     }
     reset_done := reset_idx === (sets - 1).U && reset_way === (ways - 1).U
 
-    meta_wr_req.valid := state === sRESET || out.valid && cacheable
+    meta_wr_req.valid := state === sRESET || state === sWORK && ready_to_write && cacheable
     meta_wr_req.bits.idx := Mux(state === sRESET, reset_idx, get_idx(in.bits.addr))
     meta_wr_req.bits.way := Mux(state === sRESET, reset_way, in.bits.hit_or_evict_way)
     meta_wr_req.bits.meta := Mux(state === sRESET, 0.U.asTypeOf(new MetaEntry), new_meta)
@@ -440,7 +451,7 @@ class Stage3 extends ErythModule {
         )
     }
 
-    data_wr_req.valid := out.valid && cacheable
+    data_wr_req.valid := state === sWORK && ready_to_write && cacheable
     data_wr_req.bits.idx := get_idx(in.bits.addr)
     data_wr_req.bits.way := in.bits.hit_or_evict_way
     data_wr_req.bits.data := new_cacheline
