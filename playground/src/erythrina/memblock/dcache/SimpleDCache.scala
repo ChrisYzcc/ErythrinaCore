@@ -144,6 +144,13 @@ class Stage2 extends ErythModule {
 
     val idx = get_idx(in.bits.addr)
 
+    val use_meta_reg = RegInit(false.B)
+    when (in.fire) {
+        use_meta_reg := false.B
+    }.elsewhen(out.valid && !out.ready) {
+        use_meta_reg := true.B
+    }
+
     // check for hit
     val meta_hit_vec = meta_rd_rsp.bits.map{
         case m => 
@@ -182,9 +189,14 @@ class Stage2 extends ErythModule {
     task.hit_or_evict_meta := Mux(hit, hit_meta, evict_meta)
     task.hit_or_evict_way := Mux(hit, hit_way, evict_way)
 
+    val task_reg = RegInit(0.U.asTypeOf(new SimpleDCacheTask))
+    when (out.valid && !out.ready && !use_meta_reg) {
+        task_reg := task
+    }
+
     in.ready := out.ready
     out.valid := true.B
-    out.bits := task
+    out.bits := Mux(use_meta_reg, task_reg, task)
 }
 
 // Stage3: response for hit, refill for miss
