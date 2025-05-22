@@ -145,7 +145,7 @@ class Stage2 extends ErythModule {
     val idx = get_idx(in.bits.addr)
 
     val use_meta_reg = RegInit(false.B)
-    when (in.fire) {
+    when (in.fire || out.fire) {
         use_meta_reg := false.B
     }.elsewhen(out.valid && !out.ready) {
         use_meta_reg := true.B
