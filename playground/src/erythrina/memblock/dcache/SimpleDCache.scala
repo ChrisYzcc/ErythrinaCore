@@ -278,7 +278,7 @@ class Stage3 extends ErythModule {
 
     switch (state_r) {
         is (sIDLE_R) {
-            when (RegNext(in.fire) && (!hit || !cacheable && is_read) && content_valid) {
+            when (RegNext(in.fire) && (!hit && cacheable || !cacheable && is_read) && content_valid) {
                 state_r := sREQ_R
             }
         }
@@ -305,7 +305,7 @@ class Stage3 extends ErythModule {
 
     switch (state_w) {
         is (sIDLE_W) {
-            when (RegNext(in.fire) && (!hit && dirty || !cacheable && is_write) && content_valid) {
+            when (RegNext(in.fire) && (!hit && dirty && cacheable || !cacheable && is_write) && content_valid) {
                 state_w := sREQ_W
             }
         }
@@ -367,8 +367,8 @@ class Stage3 extends ErythModule {
     val aw_addr = RegInit(0.U(XLEN.W))
     when (RegNext(in.fire)) {
         aw_addr := Mux(cacheable,
-                    get_cacheline_addr(in.bits.addr),
-                    Cat(meta.tag, set_idx, 0.U(log2Ceil(CachelineSize).W))
+                    Cat(meta.tag, set_idx, 0.U(log2Ceil(CachelineSize).W)),
+                    get_cacheline_addr(in.bits.addr)
                 )
     }.elsewhen(axi.b.fire) {
         aw_addr := aw_addr + 4.U
