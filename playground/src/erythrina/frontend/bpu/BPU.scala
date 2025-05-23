@@ -16,7 +16,7 @@ class BPU extends ErythModule {
 
         val ftq_enq_req = DecoupledIO(new InstFetchBlock)        // to FTQ, enq
 
-        val btb_upt = Flipped(Vec(CommitWidth, ValidIO(new BTBUpt))) // from backend, btb update
+        val btb_upt = Flipped(Vec(CommitWidth + DecodeWidth, ValidIO(new BTBUpt))) // from backend, btb update
     })
 
     val s0_valid = Wire(Bool())

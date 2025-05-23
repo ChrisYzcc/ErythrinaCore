@@ -13,6 +13,7 @@ import erythrina.backend.fu.CSRop
 import utils.ZeroExt
 import erythrina.backend.fu.BRUop
 import erythrina.backend.Redirect
+import erythrina.frontend.bpu.BTBUpt
 
 trait InstrType {
 	def TypeI   = "b000".U
@@ -59,6 +60,7 @@ class Decoder extends ErythModule with InstrType{
 		val in = Input(new InstInfo)
 		val out = ValidIO(new InstExInfo)
 
+        val btb_upt = ValidIO(new BTBUpt)
         val redirect = ValidIO(new Redirect)
 	})
 
@@ -149,6 +151,20 @@ class Decoder extends ErythModule with InstrType{
     out.valid := in.valid
     out.bits := rsp_instExInfo
 
-    io.redirect.valid := out.valid && !(out.bits.fuType === FuType.bru) && out.bits.bpu_taken
-    io.redirect.bits.npc := out.bits.pc + 4.U
+    // check for jal & ret
+    val is_jal_jmp = instr_type === TypeJ && fuOpType === BRUop.jal
+    val is_jalr_jmp = instr_type === TypeJ && fuOpType === BRUop.jalr && rs1 === 0.U
+    val target = Mux(is_jal_jmp, pc + imm, Cat(imm(XLEN - 1, 1), 0.U(1.W)))
+
+    val direction_err = fuType === FuType.bru && (is_jal_jmp || is_jalr_jmp) && !out.bits.bpu_taken
+    val target_err = fuType === FuType.bru && (is_jal_jmp || is_jalr_jmp) && out.bits.bpu_taken && out.bits.bpu_target =/= target
+
+    io.redirect.valid := out.valid && (direction_err || target_err)
+    io.redirect.bits.npc := target
+
+    io.btb_upt.valid := out.valid && (direction_err || target_err)
+    io.btb_upt.bits.target := target
+    io.btb_upt.bits.hit := out.bits.bpu_hit
+    io.btb_upt.bits.pc := pc
+    io.btb_upt.bits.taken := true.B
 }

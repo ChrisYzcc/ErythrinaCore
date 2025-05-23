@@ -43,12 +43,12 @@ class BTB extends ErythModule {
     val io = IO(new Bundle {
         val req = Vec(FetchWidth, Flipped(ValidIO(new BTBReq)))
         val rsp = Vec(FetchWidth, ValidIO(new BTBRsp))
-        val upt = Vec(CommitWidth, Flipped(ValidIO(new BTBUpt)))
+        val upt = Vec(CommitWidth + DecodeWidth, Flipped(ValidIO(new BTBUpt)))
     })
 
     println(s"BTB: BTBSize = ${BTBSize}")
 
-    val train_queue = Module(new MultiPortQueue(new BTBUpt, 8, CommitWidth, 1))
+    val train_queue = Module(new MultiPortQueue(new BTBUpt, 8, CommitWidth + DecodeWidth, 1))
     train_queue.io.flush := false.B
     train_queue.io.enq.zipWithIndex.map{
         case (enq, i) =>
