@@ -41,7 +41,7 @@ object ICacheParams {
 
     // cache params
     var ways = 4
-    var sets = 256
+    var sets = 512
     var CachelineSize = 32
 
     def TagLen = XLEN - log2Ceil(sets) - log2Ceil(CachelineSize)
