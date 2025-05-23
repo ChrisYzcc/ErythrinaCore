@@ -76,6 +76,7 @@ icache_data["MissPenalty"] = (icache_data["miss_penalty_tot"] / icache_data["mis
 
 # Proccess DCache Data
 dcache_data["HitRate"] = (dcache_data["hit"] / (dcache_data["hit"] + dcache_data["miss"]))
+dcache_data["MissPenalty"] = (dcache_data["miss_penalty_tot"] / dcache_data["miss"])
 
 # Proccess BPU Data
 if (bpu_data["correct"]["exu"] + bpu_data["wrong"]["exu"] == 0):
@@ -98,6 +99,7 @@ with open(topdown_res_file, "w") as f:
 
     f.write("DCache Data\n")
     f.write(f"HitRate: {dcache_data['HitRate']:.2%}\n")
+    f.write(f"MissPenalty: {dcache_data['MissPenalty']:.2f}\n")
 
     f.write("-"*40 + "\n")
 

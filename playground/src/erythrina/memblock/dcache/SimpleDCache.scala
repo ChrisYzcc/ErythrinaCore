@@ -482,6 +482,9 @@ class Stage3 extends ErythModule {
     io.forward.bits.fwd_meta := new_meta
     io.forward.bits.fwd_way := in.bits.hit_or_evict_way
     io.forward.bits.fwd_idx := get_idx(in.bits.addr)
+
+    /* ---------------- Performance ----------------  */
+    PerfCount("dcache_miss_penalty_tot", content_valid && !hit && cacheable && !out.valid)
 }
 
 class SimpleDCache extends ErythModule {
