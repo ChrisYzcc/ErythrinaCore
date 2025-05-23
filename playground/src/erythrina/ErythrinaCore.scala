@@ -28,7 +28,11 @@ class ErythrinaCore extends ErythModule {
     axi_arb.io.in(0) <> d_axi
     axi_arb.io.in(1) <> i_axi
 
-    val axi_xbar = Module(new AXI4XBar(addr_space))
+    val xbar_space = List(
+        (0x0f000000L, 0x88000000L),     // other
+        (0x02000000L, 0x02010000L)      // CLINT
+    )
+    val axi_xbar = Module(new AXI4XBar(xbar_space))
     val axi_clint = Module(new AXI4CLINT)
 
     axi_xbar.io.in <> axi_arb.io.out

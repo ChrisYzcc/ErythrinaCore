@@ -6,7 +6,8 @@ import chisel3.util._
 
 object AddrSpace {
     val addr_space = List(
-        (0x0f000000L, 0x88000000L),     // other
+        (0x80000000L, 0x88000000L),     // Memory
+        (0x10000000L, 0x10010000L),     // UART
         (0x02000000L, 0x02010000L)      // CLINT
     )
 
