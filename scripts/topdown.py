@@ -20,6 +20,9 @@ bpu_data = {}
 icahce_pattern = r"icache_(\w+):\s*(\d+)"
 icache_data = {}
 
+dcache_pattern = r"dcache_(\w+):\s*(\d+)"
+dcache_data = {}
+
 with open(topdown_file, "r") as f:
     lines = f.readlines()
     topdown = {}
@@ -36,6 +39,13 @@ with open(topdown_file, "r") as f:
             key = match.group(1)
             value = int(match.group(2))
             icache_data[key] = value
+
+        # Get DCache data
+        match = re.search(dcache_pattern, line)
+        if match:
+            key = match.group(1)
+            value = int(match.group(2))
+            dcache_data[key] = value
 
         # Get BPU data
         match = re.search(bpu_pattern, line)
@@ -64,6 +74,9 @@ with open(topdown_file, "r") as f:
 icache_data["HitRate"] = (icache_data["hit"] / (icache_data["hit"] + icache_data["miss"]))
 icache_data["MissPenalty"] = (icache_data["miss_penalty_tot"] / icache_data["miss"])
 
+# Proccess DCache Data
+dcache_data["HitRate"] = (dcache_data["hit"] / (dcache_data["hit"] + dcache_data["miss"]))
+
 # Proccess BPU Data
 if (bpu_data["correct"]["exu"] + bpu_data["wrong"]["exu"] == 0):
     bpu_data["CorrectRate"] = 0
@@ -80,6 +93,11 @@ with open(topdown_res_file, "w") as f:
     f.write("ICache Data\n")
     f.write(f"HitRate: {icache_data['HitRate']:.2%}\n")
     f.write(f"MissPenalty: {icache_data['MissPenalty']:.2f}\n")
+
+    f.write("-"*40 + "\n")
+
+    f.write("DCache Data\n")
+    f.write(f"HitRate: {dcache_data['HitRate']:.2%}\n")
 
     f.write("-"*40 + "\n")
 

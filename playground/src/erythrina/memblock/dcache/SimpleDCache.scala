@@ -200,6 +200,11 @@ class Stage2 extends ErythModule {
     in.ready := out.ready
     out.valid := true.B
     out.bits := Mux(use_meta_reg, task_reg, task)
+
+    /* ---------------- Performance ----------------  */
+    PerfCount("dcache_hit", out.fire && out.bits.hit && out.bits.cacheable)
+    PerfCount("dcache_miss", out.fire && !out.bits.hit && out.bits.cacheable)
+    PerfCount("dcache_mmio", out.fire && !out.bits.hit && !out.bits.cacheable)
 }
 
 // Stage3: response for hit, refill for miss
