@@ -7,6 +7,8 @@ import bus.axi4._
 import device._
 import difftest.DifftestBox
 import utils.PerfBox
+import erythrina.memblock.dcache.DCacheParams
+import erythrina.frontend.icache.ICacheParams
 
 class SimTop extends Module {
     Config.RESETVEC = 0x80000000L
@@ -28,6 +30,10 @@ class SimTop extends Module {
 
 class PerfTop extends Module {
     Config.isTiming = true
+
+    ICacheParams.sets = 1024 / (ICacheParams.ways * ICacheParams.CachelineSize)
+    DCacheParams.sets = 1024 / (DCacheParams.ways * DCacheParams.CachelineSize)
+
     val io = IO(new AXI4)
 
     val core = Module(new ErythrinaCore)
