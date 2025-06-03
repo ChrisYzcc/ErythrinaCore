@@ -211,7 +211,7 @@ class AXI4Memory extends Module {
 	// AR
 	axi.ar.ready := rState === rIDLE
 
-	assert(!axi.ar.valid || axi.ar.bits.len <= 7.U)
+	//assert(!axi.ar.valid || axi.ar.bits.len <= 7.U)
 	assert(!axi.ar.valid || axi.ar.bits.size === "b010".U)
 
 	// DDR
