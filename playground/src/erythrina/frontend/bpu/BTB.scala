@@ -17,7 +17,7 @@ class BTBRsp extends ErythBundle {
     val target = UInt(XLEN.W)
 }
 
-class BTBUpt extends ErythBundle {
+class BPUTrainInfo extends ErythBundle {
     val hit = Bool()
     val pc = UInt(XLEN.W)
     val target = UInt(XLEN.W)
@@ -43,12 +43,12 @@ class BTB extends ErythModule {
     val io = IO(new Bundle {
         val req = Vec(FetchWidth, Flipped(ValidIO(new BTBReq)))
         val rsp = Vec(FetchWidth, ValidIO(new BTBRsp))
-        val upt = Vec(CommitWidth + DecodeWidth, Flipped(ValidIO(new BTBUpt)))
+        val upt = Vec(CommitWidth + DecodeWidth, Flipped(ValidIO(new BPUTrainInfo)))
     })
 
     println(s"BTB: BTBSize = ${BTBSize}")
 
-    val train_queue = Module(new MultiPortQueue(new BTBUpt, 8, CommitWidth + DecodeWidth, 1))
+    val train_queue = Module(new MultiPortQueue(new BPUTrainInfo, 8, CommitWidth + DecodeWidth, 1))
     train_queue.io.flush := false.B
     train_queue.io.enq.zipWithIndex.map{
         case (enq, i) =>

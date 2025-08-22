@@ -6,7 +6,7 @@ import erythrina.ErythModule
 import erythrina.backend.InstExInfo
 import erythrina.backend.Redirect
 import utils.PerfCount
-import erythrina.frontend.bpu.BTBUpt
+import erythrina.frontend.bpu.BPUTrainInfo
 
 class IDU extends ErythModule {
     val io = IO(new Bundle {
@@ -16,7 +16,7 @@ class IDU extends ErythModule {
 
         val redirect = ValidIO(new Redirect)
         
-        val btb_upt = Vec(DecodeWidth, ValidIO(new BTBUpt))
+        val bpu_upt = Vec(DecodeWidth, ValidIO(new BPUTrainInfo))
     })
 
     val decoder_seq = Seq.fill(DecodeWidth)(Module(new Decoder))
@@ -48,7 +48,7 @@ class IDU extends ErythModule {
     io.redirect.bits := RegNext(redirect_vec(redirect_idx).bits)
 
     for (i <- 0 until DecodeWidth) {
-        io.btb_upt(i) <> decoder_seq(i).io.btb_upt
+        io.bpu_upt(i) <> decoder_seq(i).io.bpu_upt
     }
 
     /* --------------- Perf --------------- */

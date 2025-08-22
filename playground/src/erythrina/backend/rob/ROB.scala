@@ -12,7 +12,7 @@ import utils.{Halter, HaltOp}
 import utils.PerfDumpTrigger
 import utils.PerfCount
 import top.Config
-import erythrina.frontend.bpu.BTBUpt
+import erythrina.frontend.bpu.BPUTrainInfo
 
 class ROB extends ErythModule {
     val io = IO(new Bundle {
@@ -50,7 +50,7 @@ class ROB extends ErythModule {
         val flush = Output(Bool())
 
         // BPU training
-        val btb_upt = Vec(CommitWidth, ValidIO(new BTBUpt))
+        val bpu_upt = Vec(CommitWidth, ValidIO(new BPUTrainInfo))
 
         // redirect
         val redirect = ValidIO(new Redirect)
@@ -122,7 +122,7 @@ class ROB extends ErythModule {
     // Commit (deq)
     val fl_free_req = io.fl_free_req
     val rat_req = io.upt_arch_rat
-    val btb_upt = io.btb_upt
+    val bpu_upt = io.bpu_upt
 
     val commit_needDeq = Wire(Vec(CommitWidth, Bool()))
     val commit_canDeq = Wire(Vec(CommitWidth, Bool()))
@@ -144,11 +144,11 @@ class ROB extends ErythModule {
         rat_req(i).bits.p_reg := entries(ptr.value).p_rd
 
         // BPU training
-        btb_upt(i).valid := (if (i == 0) redirect.valid && entries(commitPtrExt(i).value).exception.can_commit || commit_canDeq(i) else commit_canDeq(i)) && (entries(ptr.value).fuType === FuType.bru)
-        btb_upt(i).bits.pc := entries(ptr.value).pc
-        btb_upt(i).bits.hit := entries(ptr.value).bpu_hit
-        btb_upt(i).bits.target := entries(ptr.value).real_target
-        btb_upt(i).bits.taken := entries(ptr.value).real_taken && (entries(ptr.value).fuType === FuType.bru)
+        bpu_upt(i).valid := (if (i == 0) redirect.valid && entries(commitPtrExt(i).value).exception.can_commit || commit_canDeq(i) else commit_canDeq(i)) && (entries(ptr.value).fuType === FuType.bru)
+        bpu_upt(i).bits.pc := entries(ptr.value).pc
+        bpu_upt(i).bits.hit := entries(ptr.value).bpu_hit
+        bpu_upt(i).bits.target := entries(ptr.value).real_target
+        bpu_upt(i).bits.taken := entries(ptr.value).real_taken && (entries(ptr.value).fuType === FuType.bru)
     }
     val cmtNum = PopCount(commit_canDeq)
     commitPtrExt.foreach{case x => when (commit_canDeq.asUInt.orR) {x := x + cmtNum}}

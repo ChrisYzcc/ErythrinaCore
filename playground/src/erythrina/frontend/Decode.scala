@@ -13,7 +13,7 @@ import erythrina.backend.fu.CSRop
 import utils.ZeroExt
 import erythrina.backend.fu.BRUop
 import erythrina.backend.Redirect
-import erythrina.frontend.bpu.BTBUpt
+import erythrina.frontend.bpu.BPUTrainInfo
 
 trait InstrType {
 	def TypeI   = "b000".U
@@ -60,7 +60,7 @@ class Decoder extends ErythModule with InstrType{
 		val in = Input(new InstInfo)
 		val out = ValidIO(new InstExInfo)
 
-        val btb_upt = ValidIO(new BTBUpt)
+        val bpu_upt = ValidIO(new BPUTrainInfo)
         val redirect = ValidIO(new Redirect)
 	})
 
@@ -162,9 +162,9 @@ class Decoder extends ErythModule with InstrType{
     io.redirect.valid := out.valid && (direction_err || target_err)
     io.redirect.bits.npc := target
 
-    io.btb_upt.valid := out.valid && (direction_err || target_err)
-    io.btb_upt.bits.target := target
-    io.btb_upt.bits.hit := out.bits.bpu_hit
-    io.btb_upt.bits.pc := pc
-    io.btb_upt.bits.taken := true.B
+    io.bpu_upt.valid := out.valid && (direction_err || target_err)
+    io.bpu_upt.bits.target := target
+    io.bpu_upt.bits.hit := out.bits.bpu_hit
+    io.bpu_upt.bits.pc := pc
+    io.bpu_upt.bits.taken := true.B
 }
