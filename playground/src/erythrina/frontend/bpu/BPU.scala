@@ -8,6 +8,8 @@ import erythrina.ErythBundle
 
 import erythrina.frontend.icache.ICacheParams._
 import erythrina.frontend.InstFetchBlock
+import utils.MultiPortQueue
+import top.Config
 
 class BPU extends ErythModule {
     val io = IO(new Bundle {
@@ -18,6 +20,25 @@ class BPU extends ErythModule {
 
         val bpu_upt = Flipped(Vec(CommitWidth + DecodeWidth, ValidIO(new BPUTrainInfo))) // from backend, for training bpu
     })
+
+    /* -------------- Training Sequence -------------- */
+    val train_queue = Module(new MultiPortQueue(new BPUTrainInfo, 8, CommitWidth + DecodeWidth, 1))
+    train_queue.io.flush := false.B
+    train_queue.io.enq.zipWithIndex.map{
+        case (enq, i) =>
+            enq.valid := io.bpu_upt(i).valid
+            enq.bits := io.bpu_upt(i).bits
+    }
+
+    train_queue.io.deq(0).ready := !reset.asBool
+
+    /* -------------- Global History Register -------------- */
+    val ghr = RegInit(0.U(XLEN.W))
+    if (Config.useGHR) {
+        when (train_queue.io.deq(0).valid) {
+            ghr := Cat(ghr(XLEN - 2, 0), train_queue.io.deq(0).bits.taken)
+        }
+    }
 
     val s0_valid = Wire(Bool())
     val s1_valid = RegInit(false.B)
@@ -33,7 +54,9 @@ class BPU extends ErythModule {
     }
 
     val btb = Module(new BTB)
-    btb.io.upt <> io.bpu_upt
+    btb.io.upt.valid := train_queue.io.deq(0).valid
+    btb.io.upt.bits := train_queue.io.deq(0).bits
+    btb.io.ghr := ghr
 
     /* -------------- s0 -------------- */
     s0_valid := (s1_valid || io.redirect.valid || !rst_issued) && !io.flush && !reset.asBool

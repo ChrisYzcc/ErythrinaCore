@@ -7,6 +7,7 @@ import erythrina.frontend.{FuType, FuOpType, InstInfo}
 import erythrina.backend.rob.ROBPtr
 import erythrina.memblock.lsq.{LQPtr, SQPtr}
 import erythrina.frontend.isa.Exceptions
+import erythrina.frontend.bpu.BPUParmams
 
 class InstrState extends Bundle {
     val fetched = Bool()
@@ -86,6 +87,7 @@ class InstExInfo extends ErythBundle {
     val bpu_hit = Bool()      // BPU prediction hit
     val bpu_taken = Bool()      // BPU prediction result
     val bpu_target = UInt(XLEN.W)
+    val bpu_ghr = UInt(XLEN.W)
 
     val real_taken = Bool()     // real branch result
     val real_target = UInt(XLEN.W)
@@ -102,9 +104,10 @@ class InstExInfo extends ErythBundle {
         this.bpu_hit := inst_info.bpu_hit
         this.bpu_taken := inst_info.bpu_taken
         this.bpu_target := inst_info.bpu_target
+        this.bpu_ghr := inst_info.bpu_ghr
     }
 
-    def isStroe = {
+    def isStore = {
         this.fuType === FuType.stu
     }
     def isLoad = {

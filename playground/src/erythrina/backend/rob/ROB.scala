@@ -149,6 +149,7 @@ class ROB extends ErythModule {
         bpu_upt(i).bits.hit := entries(ptr.value).bpu_hit
         bpu_upt(i).bits.target := entries(ptr.value).real_target
         bpu_upt(i).bits.taken := entries(ptr.value).real_taken && (entries(ptr.value).fuType === FuType.bru)
+        bpu_upt(i).bits.ghr := entries(ptr.value).bpu_ghr
     }
     val cmtNum = PopCount(commit_canDeq)
     commitPtrExt.foreach{case x => when (commit_canDeq.asUInt.orR) {x := x + cmtNum}}

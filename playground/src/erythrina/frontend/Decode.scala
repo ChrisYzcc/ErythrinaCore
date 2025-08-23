@@ -167,4 +167,6 @@ class Decoder extends ErythModule with InstrType{
     io.bpu_upt.bits.hit := out.bits.bpu_hit
     io.bpu_upt.bits.pc := pc
     io.bpu_upt.bits.taken := true.B
+    io.bpu_upt.bits.ghr := out.bits.bpu_ghr
+
 }

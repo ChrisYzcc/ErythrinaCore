@@ -3,6 +3,7 @@ package erythrina.frontend
 import chisel3._
 import chisel3.util._
 import erythrina.ErythBundle
+import erythrina.frontend.bpu.BPUParmams
 
 class InstInfo extends ErythBundle {
     val valid   = Bool()
@@ -12,6 +13,7 @@ class InstInfo extends ErythBundle {
     val bpu_hit = Bool()      // BPU says: this is a branch instruction
     val bpu_taken = Bool()      // BPU says: let's take the branch!
     val bpu_target = UInt(XLEN.W) // BPU says: branch target address
+    val bpu_ghr = UInt(XLEN.W) // BPU global history register
 }
 
 class InstFetchBlock extends ErythBundle {

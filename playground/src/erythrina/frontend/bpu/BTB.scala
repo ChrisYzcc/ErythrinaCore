@@ -6,6 +6,7 @@ import erythrina.{ErythModule, ErythBundle}
 import BPUParmams._
 import utils.MultiPortQueue
 import utils.PerfCount
+import top.Config
 
 class BTBReq extends ErythBundle {
     val pc = UInt(XLEN.W)
@@ -22,6 +23,8 @@ class BPUTrainInfo extends ErythBundle {
     val pc = UInt(XLEN.W)
     val target = UInt(XLEN.W)
     val taken = Bool()
+
+    val ghr = UInt(XLEN.W)
 }
 
 class SatCnt(bits:Int) extends ErythBundle {
@@ -42,23 +45,24 @@ class SatCnt(bits:Int) extends ErythBundle {
 class BTB extends ErythModule {
     val io = IO(new Bundle {
         val req = Vec(FetchWidth, Flipped(ValidIO(new BTBReq)))
+        val ghr = Input(UInt(XLEN.W))
         val rsp = Vec(FetchWidth, ValidIO(new BTBRsp))
-        val upt = Vec(CommitWidth + DecodeWidth, Flipped(ValidIO(new BPUTrainInfo)))
+        val upt = Flipped(ValidIO(new BPUTrainInfo))
     })
 
     println(s"BTB: BTBSize = ${BTBSize}")
 
-    val train_queue = Module(new MultiPortQueue(new BPUTrainInfo, 8, CommitWidth + DecodeWidth, 1))
-    train_queue.io.flush := false.B
-    train_queue.io.enq.zipWithIndex.map{
-        case (enq, i) =>
-            enq.valid := io.upt(i).valid
-            enq.bits := io.upt(i).bits
+    val train_req = io.upt
+    
+    def get_btb_idx(pc: UInt, ghr: UInt): UInt = {
+        val new_pc = pc ^ ghr
+        new_pc(log2Ceil(BTBSize) + 1, 2)
+    }
+    def get_btb_tag(pc: UInt, ghr: UInt): UInt = {
+        val new_pc = pc ^ ghr
+        new_pc(XLEN - 1, XLEN - TagBits)
     }
 
-    train_queue.io.deq(0).ready := !reset.asBool
-    val train_req = train_queue.io.deq(0)
-    
     /* ------------- Meta & Target & Sat Cnt ------------- */
     val targets = SyncReadMem(BTBSize, UInt(XLEN.W))
     val tags = SyncReadMem(BTBSize, UInt(TagBits.W))
@@ -66,13 +70,16 @@ class BTB extends ErythModule {
     val valids = RegInit(VecInit(Seq.fill(BTBSize)(false.B)))
 
     /* ------------- Request ------------- */
+    val ghr = io.ghr
+
     val btb_targets = Wire(Vec(FetchWidth, UInt(XLEN.W)))
     val btb_tags = Wire(Vec(FetchWidth, UInt(TagBits.W)))
     val btb_satcnts = Wire(Vec(FetchWidth, UInt(2.W)))
     val btb_valids = Wire(Vec(FetchWidth, Bool()))
 
     for (i <- 0 until FetchWidth) {
-        val idx = get_btb_idx(io.req(i).bits.pc)
+        val idx = get_btb_idx(io.req(i).bits.pc, ghr)
+
         btb_targets(i) := targets.read(idx, io.req(i).valid)
         btb_tags(i) := tags.read(idx, io.req(i).valid)
         btb_satcnts(i) := RegNext(satcnts(idx).cnt)
@@ -82,15 +89,15 @@ class BTB extends ErythModule {
     /* ------------- Response ------------- */
     for (i <- 0 until FetchWidth) {
         io.rsp(i).valid := RegNext(io.req(i).valid)
-        io.rsp(i).bits.hit := btb_tags(i) === get_btb_tag(RegNext(io.req(i).bits.pc)) && btb_valids(i)
+        io.rsp(i).bits.hit := btb_tags(i) === get_btb_tag(RegNext(io.req(i).bits.pc), RegNext(ghr)) && btb_valids(i)
         io.rsp(i).bits.taken := btb_satcnts(i)(1) && io.rsp(i).bits.hit
         io.rsp(i).bits.target := btb_targets(i)
     }
 
     /* ------------- Update ------------- */
     when (train_req.valid) {
-        val idx = get_btb_idx(train_req.bits.pc)
-        val tag = get_btb_tag(train_req.bits.pc)
+        val idx = get_btb_idx(train_req.bits.pc, train_req.bits.ghr)
+        val tag = get_btb_tag(train_req.bits.pc, train_req.bits.ghr)
         val hit = train_req.bits.hit
         val target = train_req.bits.target
         val taken = train_req.bits.taken
@@ -116,6 +123,6 @@ class BTB extends ErythModule {
     
     /* ------------------ Perf ------------------ */
     for (i <- 0 until BTBSize) {
-        PerfCount(s"btb_replace_$i", train_req.valid && !train_req.bits.hit && get_btb_idx(train_req.bits.pc) === i.U)
+        PerfCount(s"btb_replace_$i", train_req.valid && !train_req.bits.hit && get_btb_idx(train_req.bits.pc, train_req.bits.ghr) === i.U)
     }
 }

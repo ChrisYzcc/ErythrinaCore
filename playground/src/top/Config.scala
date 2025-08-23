@@ -9,4 +9,6 @@ object Config {
 
     var ICacheRange = (0xa0000000L, 0xbfffffffL)
     var DCacheRange = (0xa0000000L, 0xbfffffffL)
+
+    var useGHR = true
 }

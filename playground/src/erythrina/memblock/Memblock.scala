@@ -87,7 +87,7 @@ class Memblock extends ErythModule {
     storeQueue.io.alloc_rsp <> io.from_backend.sq_alloc_rsp
     
     for (i <- 0 until CommitWidth) {
-        storeQueue.io.rob_commit(i).valid := io.from_backend.rob_commits(i).valid && io.from_backend.rob_commits(i).bits.isStroe
+        storeQueue.io.rob_commit(i).valid := io.from_backend.rob_commits(i).valid && io.from_backend.rob_commits(i).bits.isStore
         storeQueue.io.rob_commit(i).bits := io.from_backend.rob_commits(i).bits.sqPtr
     }
     
