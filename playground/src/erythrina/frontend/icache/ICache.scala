@@ -10,6 +10,22 @@ import top.Config._
 import utils.PLRU
 import utils.PerfCount
 
+object ICacheCMD {
+    def READ = 0.U
+    def PREFETCH = 1.U
+
+    def apply() = UInt(2.W)
+}
+
+class ICacheReq extends ErythBundle {
+    val addr = UInt(XLEN.W)
+    val cmd = ICacheCMD()
+}
+
+class ICacheMeta extends ErythBundle {
+    val valid = Bool()
+    val tag = UInt(TagLen.W)
+}
 
 class ICacheDummy extends ErythModule {
     val io = IO(new Bundle {
@@ -101,7 +117,7 @@ class ICacheDummy extends ErythModule {
     axi.aw <> DontCare
 }
 
-class ICache extends ErythModule {
+class SeqICache extends ErythModule {
     val io = IO(new Bundle {
         val req = Flipped(DecoupledIO(UInt(XLEN.W)))
         val rsp = ValidIO(UInt((CachelineSize * 8).W))
@@ -236,4 +252,40 @@ class ICache extends ErythModule {
             PerfCount(s"icache_set$i/_way$j/_hit", s1_valid && hit && s1_inrange && rsp.valid && s1_idx === i.U && hit_way === j.U)
         }
     }
+}
+
+class ICache extends ErythModule {
+    val io = IO(new Bundle {
+        val req = Flipped(DecoupledIO(UInt(XLEN.W)))
+        val rsp = ValidIO(UInt((CachelineSize * 8).W))
+
+        val axi = new AXI4
+    })
+
+    // Print ICache Config
+    println(s"ICache: sets = ${ICacheParams.sets}, ways = ${ICacheParams.ways}, cacheline = ${ICacheParams.CachelineSize} bytes, tot = ${ICacheParams.sets * ICacheParams.ways * ICacheParams.CachelineSize} bytes")
+
+    val axi = io.axi
+    val (req, rsp) = (io.req, io.rsp)
+
+    val fetcher = Module(new Fetcher)
+    val main_pipe = Module(new MainPipe)
+    val prefetcher = Module(new Prefetcher)
+    
+    val req_arb = Module(new Arbiter(new ICacheReq, 2))
+
+    req_arb.io.in(0).valid := req.valid
+    req_arb.io.in(0).bits.addr := req.bits
+    req_arb.io.in(0).bits.cmd := ICacheCMD.READ
+    req.ready := req_arb.io.in(0).ready
+
+    req_arb.io.in(1) <> prefetcher.io.pft_req
+    req_arb.io.out <> main_pipe.io.req
+
+    main_pipe.io.rsp <> rsp
+    main_pipe.io.pft_hint <> prefetcher.io.pft_hint
+    main_pipe.io.fetcher_req <> fetcher.io.req
+    main_pipe.io.fetcher_rsp <> fetcher.io.rsp
+
+    fetcher.io.axi <> axi
 }

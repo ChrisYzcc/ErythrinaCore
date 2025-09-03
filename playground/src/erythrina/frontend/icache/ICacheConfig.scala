@@ -6,6 +6,7 @@ import top.Config._
 
 object ICacheParams {
     val CacheableRange = ICacheRange
+    val UsePft = useICachePft.B
 
     def get_cacheline_offset(addr: UInt): UInt = {
         val offset = addr(log2Ceil(CachelineSize) - 1, 0)
