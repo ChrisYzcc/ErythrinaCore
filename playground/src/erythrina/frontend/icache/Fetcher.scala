@@ -143,5 +143,5 @@ class Fetcher extends ErythModule {
     axi.b <> DontCare
 
     /* ---------------- Performance ----------------  */
-    PerfCount("icache_miss_penalty_tot", (state === sREQ || state === sRECV || state === sRSP))
+    PerfCount("icache_miss_penalty_tot", (state === sREQ || state === sRECV || state === sRSP) && req_from_mainpipe)
 }
