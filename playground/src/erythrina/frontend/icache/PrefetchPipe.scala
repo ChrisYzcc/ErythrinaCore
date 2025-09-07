@@ -1,14 +1,16 @@
 package erythrina.frontend.icache
 
+/**
+  * Prefetch Pipeline
+*/
+
 import chisel3._
 import chisel3.util._
-import erythrina.{ErythModule, ErythBundle}
-import utils.PerfCount
+import erythrina.ErythModule
 
-class MainPipe extends ErythModule {
+class PrefetchPipe extends ErythModule {
     val io = IO(new Bundle {
         val req = Flipped(DecoupledIO(UInt(XLEN.W)))
-        val rsp = ValidIO(UInt((ICacheParams.CachelineSize * 8).W))
 
         // Req to Meta Array
         val meta_req = DecoupledIO(new Bundle {
@@ -17,33 +19,16 @@ class MainPipe extends ErythModule {
 
         val meta_rsp = Input(Vec(ICacheParams.ways, new ICacheMeta))
 
-        // Req to Data Array
-        val data_req = DecoupledIO(new Bundle {
-            val idx = UInt(log2Ceil(ICacheParams.sets).W)
-        })
-
-        val data_rsp = Input(Vec(ICacheParams.ways, UInt((ICacheParams.CachelineSize * 8).W)))
-
         // Req to Fetcher
         val fetcher_req = DecoupledIO(UInt(XLEN.W))
         val fetcher_rsp = Flipped(ValidIO(UInt((ICacheParams.CachelineSize * 8).W)))
 
-        // Update Replacer
-        val replacer_upt_req = ValidIO(new Bundle {
-            val idx = UInt(log2Ceil(ICacheParams.sets).W)
-            val way = UInt(log2Ceil(ICacheParams.ways).W)
-        })
-
-        // Forward from Prefetch Pipe
-        val fwd_info = Flipped(ValidIO(UInt(XLEN.W)))
-
-        // Prefetcher
-        val pft_hint = ValidIO(new PftHints)
+        // Forward Info to Main Pipe
+        val fwd_info = ValidIO(UInt(XLEN.W))
     })
 
-    val (req, rsp) = (io.req, io.rsp)
+    val req = io.req
     val (meta_req, meta_rsp) = (io.meta_req, io.meta_rsp)
-    val (data_req, data_rsp) = (io.data_req, io.data_rsp)
     val (fetcher_req, fetcher_rsp) = (io.fetcher_req, io.fetcher_rsp)
     val fwd_info = io.fwd_info
 
@@ -55,10 +40,8 @@ class MainPipe extends ErythModule {
     val s1_ready = Wire(Bool())
 
     /* ------------------- Stage 0 ------------------- */
-    val fwd_hit = fwd_info.valid && (ICacheParams.get_idx(fwd_info.bits) === ICacheParams.get_idx(req.bits))
-
-    s0_valid := req.valid && !fwd_hit
-    s0_ready := s1_ready && meta_req.ready && !fwd_hit
+    s0_valid := req.valid
+    s0_ready := s1_ready && meta_req.ready
     req.ready := s0_ready
 
     val s0_addr = req.bits
@@ -67,12 +50,9 @@ class MainPipe extends ErythModule {
     val s0_idx = ICacheParams.get_idx(s0_addr)
     val s0_tag = ICacheParams.get_tag(s0_addr)
 
-    // send req to meta & data array
+    // send req to meta array
     meta_req.valid := s0_valid && s0_inrange && s0_ready
     meta_req.bits.idx := s0_idx
-
-    data_req.valid := s0_valid && s0_inrange && s0_ready
-    data_req.bits.idx := s0_idx
 
     /* ------------------- Stage 1 ------------------- */
     val s1_idx = RegInit(0.U(log2Ceil(ICacheParams.sets).W))
@@ -93,30 +73,14 @@ class MainPipe extends ErythModule {
 
     val hit_vec = meta_rsp.map(m => m.valid && (m.tag === s1_tag))
     val hit = hit_vec.reduce(_ || _) && s1_valid && s1_inrange
-    val hit_way = PriorityEncoder(hit_vec)
 
     // fetcher
     fetcher_req.valid := s1_valid && (s1_inrange && !hit || !s1_inrange)
     fetcher_req.bits := Cat(s1_tag, s1_idx, 0.U(log2Ceil(ICacheParams.CachelineSize).W))
 
-    val rsp_data = Mux(hit, data_rsp(hit_way), fetcher_rsp.bits)
-    rsp.valid := s1_valid && (s1_inrange && hit || fetcher_rsp.valid)
-    rsp.bits := rsp_data
-
     s1_ready := (!s1_valid || (s1_valid && hit) || fetcher_rsp.valid) && meta_req.ready
 
-    // replacer update
-    io.replacer_upt_req.valid := s1_valid && s1_inrange && hit
-    io.replacer_upt_req.bits.idx := s1_idx
-    io.replacer_upt_req.bits.way := hit_way
-
-    // Prfetcher
-    val pft_hint = io.pft_hint
-    pft_hint.valid := s1_valid && s1_inrange && !hit && rsp.valid
-    pft_hint.bits.addr := Cat(s1_tag, s1_idx, 0.U(log2Ceil(ICacheParams.CachelineSize).W))
-
-    /* ---------------- Performance ----------------  */
-    PerfCount("icache_hit", s1_valid && hit && s1_inrange && rsp.valid)
-    PerfCount("icache_miss", s1_valid && !hit && s1_inrange && rsp.valid)
-    PerfCount("icache_nc", s1_valid && !s1_inrange && rsp.valid)
+    // forward
+    fwd_info.valid := s1_valid
+    fwd_info.bits := Cat(s1_tag, s1_idx, 0.U(log2Ceil(ICacheParams.CachelineSize).W))
 }

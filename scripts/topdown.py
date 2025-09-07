@@ -5,12 +5,15 @@
 
 import re
 import os
+import time
+
+time_stamp = str(int(time.time()))
 
 NPC_HOME = os.environ.get("NPC_HOME")
 
 pattern = r"topdown_(\w+):\s*(\d+)"
 topdown_file = os.path.join(NPC_HOME, "build", "stderr.log")
-topdown_res_file = os.path.join(NPC_HOME, "build", "topdown.txt")
+topdown_res_file = os.path.join(NPC_HOME, "build", f"topdown_{time_stamp}.txt")
 
 topdown_res = {}
 
