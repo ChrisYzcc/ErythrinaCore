@@ -23,6 +23,7 @@ class Frontend extends ErythModule {
             val rename_req = DecoupledIO(Vec(DecodeWidth, Valid(new InstExInfo)))
         }
 
+        val icache_pft_req = DecoupledIO(UInt(XLEN.W))
         val icache_req = DecoupledIO(UInt(XLEN.W))
         val icache_rsp = Flipped(ValidIO(UInt((CachelineSize * 8).W)))
 
@@ -34,6 +35,7 @@ class Frontend extends ErythModule {
     val idu = Module(new IDU)
     val bpu = Module(new BPU)
     val ibuffer = Module(new IBuffer)
+    val ftq_filter = Module(new FTQFilter)
 
     ftq.io.flush := flush || io.from_backend.redirect.valid || idu.io.redirect.valid
     idu.io.flush := flush || io.from_backend.redirect.valid || idu.io.redirect.valid
@@ -50,12 +52,13 @@ class Frontend extends ErythModule {
 
     ftq.io.fetch_req    <> ibuffer.io.fetch_req
     ftq.io.fetch_rsp    <> ibuffer.io.fetch_rsp
+    ftq.io.pft_req      <> ftq_filter.io.in
     ftq.io.enq_req      <> bpu.io.ftq_enq_req
-    
     ftq.io.decode_req   <> idu.io.decode_req
     
     ibuffer.io.req      <> io.icache_req
     ibuffer.io.rsp      <> io.icache_rsp
+    ftq_filter.io.out   <> io.icache_pft_req
 
     idu.io.decode_res   <> io.to_backend.rename_req
 

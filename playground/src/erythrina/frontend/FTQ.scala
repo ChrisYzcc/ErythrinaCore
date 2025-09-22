@@ -5,6 +5,7 @@ import chisel3.util._
 import erythrina.ErythModule
 import utils.CircularQueuePtr
 import utils.PerfCount
+import top.Config.useFTQPft
 
 class FTQ extends ErythModule {
     val io = IO(new Bundle {
@@ -12,6 +13,8 @@ class FTQ extends ErythModule {
 
         val fetch_req   = ValidIO(new InstFetchBlock)               // to IBuffer
         val fetch_rsp  = Flipped(ValidIO(new InstFetchBlock))      // from IBuffer
+
+        val pft_req = DecoupledIO(UInt(XLEN.W))                     // to PrefetchFilter
 
         val decode_req  = DecoupledIO(new InstFetchBlock)               // to IDU, deq
     
@@ -39,6 +42,7 @@ class FTQ extends ErythModule {
     val enqPtrExt = RegInit(0.U.asTypeOf(new Ptr))
     val deqPtrExt = RegInit(0.U.asTypeOf(new Ptr))
     val fetchPtrExt = RegInit(0.U.asTypeOf(new Ptr))
+    val pftPtrExt = RegInit(0.U.asTypeOf(new Ptr))
 
     // enq
     val enq_req = io.enq_req
@@ -83,11 +87,21 @@ class FTQ extends ErythModule {
         fetched(fetch_entry.ftqIdx) := true.B
     }
 
+    // prefetch req
+    val pft_req = io.pft_req
+    pft_req.valid := valids(pftPtrExt.value) && !io.flush && !reset.asBool && useFTQPft.B
+    pft_req.bits := entries(pftPtrExt.value).instVec.head.pc
+
+    when (pft_req.fire && pftPtrExt < enqPtrExt) {
+        pftPtrExt := pftPtrExt + 1.U
+    }
+
     // flush
     when (io.flush) {
         enqPtrExt := 0.U.asTypeOf(new Ptr)
         deqPtrExt := 0.U.asTypeOf(new Ptr)
         fetchPtrExt := 0.U.asTypeOf(new Ptr)
+        pftPtrExt := 0.U.asTypeOf(new Ptr)
         for (i <- 0 until FTQSize) {
             fetched(i) := false.B
             valids(i) := false.B

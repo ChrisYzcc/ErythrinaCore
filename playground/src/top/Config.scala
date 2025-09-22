@@ -13,4 +13,5 @@ object Config {
     var useGHR = false
 
     var useICachePft = true
+    var useFTQPft = false
 }

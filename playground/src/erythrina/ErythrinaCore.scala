@@ -44,9 +44,10 @@ class ErythrinaCore extends ErythModule {
     val memblock = Module(new Memblock)
 
     val icache = Module(new ICache)
-    icache.io.req <> frontend.io.icache_req
-    icache.io.rsp <> frontend.io.icache_rsp
-    icache.io.axi <> i_axi
+    icache.io.ftq_pft_req   <> frontend.io.icache_pft_req
+    icache.io.req           <> frontend.io.icache_req
+    icache.io.rsp           <> frontend.io.icache_rsp
+    icache.io.axi           <> i_axi
 
     memblock.io.axi <> d_axi
 

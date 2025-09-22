@@ -15,6 +15,8 @@ class ICacheMeta extends ErythBundle {
 class ICache extends ErythModule {
     val io = IO(new Bundle {
         val req = Flipped(DecoupledIO(UInt(XLEN.W)))
+        val ftq_pft_req = Flipped(DecoupledIO(UInt(XLEN.W)))
+        
         val rsp = ValidIO(UInt((CachelineSize * 8).W))
 
         val axi = new AXI4
@@ -31,8 +33,16 @@ class ICache extends ErythModule {
 
     val replacer = Module(new Replacer)
 
-    val fetcher_req_arb = Module(new Arbiter(new FetcherReq, 2))
+    val pftpipe_req_arb = Module(new RRArbiter(UInt(XLEN.W), 2))
+    pftpipe_req_arb.io.in(0).valid := io.ftq_pft_req.valid
+    pftpipe_req_arb.io.in(0).bits := io.ftq_pft_req.bits
+    io.ftq_pft_req.ready := pftpipe_req_arb.io.in(0).ready
 
+    pftpipe_req_arb.io.in(1).valid := prefetcher.io.pft_req.valid
+    pftpipe_req_arb.io.in(1).bits := prefetcher.io.pft_req.bits
+    prefetcher.io.pft_req.ready := pftpipe_req_arb.io.in(1).ready
+
+    val fetcher_req_arb = Module(new Arbiter(new FetcherReq, 2))
     fetcher_req_arb.io.in(0).valid := main_pipeline.io.fetcher_req.valid
     fetcher_req_arb.io.in(0).bits.addr := main_pipeline.io.fetcher_req.bits
     fetcher_req_arb.io.in(0).bits.from_mainpipe := true.B
@@ -55,7 +65,7 @@ class ICache extends ErythModule {
     main_pipeline.io.fwd_info <> pft_pipeline.io.fwd_info
     main_pipeline.io.pft_hint <> prefetcher.io.pft_hint
 
-    pft_pipeline.io.req <> prefetcher.io.pft_req
+    pft_pipeline.io.req <> pftpipe_req_arb.io.out
     pft_pipeline.io.meta_req <> meta_array.io.rd_req(1)
     pft_pipeline.io.meta_rsp <> meta_array.io.rd_rsp(1)
     pft_pipeline.io.fetcher_rsp.valid := fetcher.io.rsp.valid && !fetcher.io.rsp_to_mainpipe
