@@ -85,6 +85,7 @@ private:
     void fork_child_init();
 
     uint32_t start_time;
+    uint32_t end_time;
 
 public:
     Emulator(int argc, const char *argv[]);

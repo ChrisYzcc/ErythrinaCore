@@ -189,9 +189,14 @@ Emulator::~Emulator() {
     delete dut_ptr;
     delete dram;
 
+    end_time = uptime();
     printf("===============================================\n");
-    printf("Total Cycles: %ld, Total Instrs: %ld\nIPC: %.5lf\n",
+    printf("Total Cycles: %ld, Total Instrs: %ld, IPC: %.5lf\n",
         cycles, inst_count, (double)inst_count / cycles);
+    double sim_time = (double)(end_time - start_time) / 1000.0; // assuming uptime returns ms
+    double cycles_per_sec = sim_time > 0 ? (double)cycles / sim_time : 0;
+    printf("Total simulation time   : %.3f s\n", sim_time);
+    printf("Simulation speed        : %.2f cycles/s\n", cycles_per_sec);
 }
 
 inline void Emulator::reset_ncycles(size_t cycles) {
