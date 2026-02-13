@@ -13,6 +13,7 @@ import bus.axi4._
 import erythrina.memblock.dcache.DCacheParams._
 import utils._
 import erythrina.ErythBundle
+import top.EAssert
 
 class MetaEntry extends ErythBundle {
     val valid = Bool()
@@ -161,7 +162,7 @@ class Stage2 extends ErythModule {
     }
     val meta_hit = meta_hit_vec.reduce(_ || _)
     val meta_hit_way = PriorityEncoder(meta_hit_vec)
-    assert(PopCount(meta_hit_vec) <= 1.U, "More than one hit in meta array")
+    EAssert(PopCount(meta_hit_vec) <= 1.U, "More than one hit in meta array")
 
     val fwd = io.forward
     val fwd_hit = fwd.bits.fwd_meta.tag === get_tag(in.bits.addr) && fwd.bits.fwd_idx === idx

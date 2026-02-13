@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 import erythrina.ErythModule
 import bus.axi4.AXI4
+import top.EAssert
 
 class AXI4URAT extends ErythModule {
     val io = IO(new Bundle {
@@ -11,7 +12,7 @@ class AXI4URAT extends ErythModule {
     })
 
     val axi = io.axi
-    assert(!axi.ar.valid, "AXI4UART does not support read operations")
+    EAssert(!axi.ar.valid, "AXI4UART does not support read operations")
     axi.ar <> DontCare
     axi.r <> DontCare
 

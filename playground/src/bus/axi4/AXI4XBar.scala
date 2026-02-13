@@ -3,6 +3,7 @@ package bus.axi4
 import chisel3._
 import chisel3.util._
 import erythrina.ErythModule
+import top.EAssert
 
 class AXI4XBar(addr_space: List[(Long, Long)]) extends ErythModule {
     val io = IO(new Bundle {
@@ -20,8 +21,8 @@ class AXI4XBar(addr_space: List[(Long, Long)]) extends ErythModule {
             hit
         }
     }
-    assert(!in.ar.valid || r_hit_vec.reduce(_ || _), "AXI4XBar: read address not in range")
-    assert(!in.ar.valid || PopCount(r_hit_vec) <= 1.U, "AXI4XBar: read address in multiple ranges")
+    EAssert(!in.ar.valid || r_hit_vec.reduce(_ || _), "AXI4XBar: read address not in range")
+    EAssert(!in.ar.valid || PopCount(r_hit_vec) <= 1.U, "AXI4XBar: read address in multiple ranges")
 
     val r_chosen = PriorityEncoder(r_hit_vec)
     val r_chosen_reg = RegEnable(r_chosen, 0.U, in.ar.fire)
@@ -62,8 +63,8 @@ class AXI4XBar(addr_space: List[(Long, Long)]) extends ErythModule {
             hit
         }
     }
-    assert(!in.aw.valid || w_hit_vec.reduce(_ || _), "AXI4XBar: write address not in range")
-    assert(!in.aw.valid || PopCount(w_hit_vec) <= 1.U, "AXI4XBar: write address in multiple ranges")
+    EAssert(!in.aw.valid || w_hit_vec.reduce(_ || _), "AXI4XBar: write address not in range")
+    EAssert(!in.aw.valid || PopCount(w_hit_vec) <= 1.U, "AXI4XBar: write address in multiple ranges")
 
     val w_chosen = PriorityEncoder(w_hit_vec)
     val w_chosen_reg = RegEnable(w_chosen, 0.U, in.aw.fire)

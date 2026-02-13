@@ -5,6 +5,7 @@ import chisel3.util._
 import erythrina.ErythModule
 import erythrina.HasErythCoreParams
 import top.Config
+import top.EAssert
 
 class RegFilePeeker extends BlackBox with HasBlackBoxInline with HasErythCoreParams {
     val io = IO(new Bundle {
@@ -87,7 +88,7 @@ class RegFile(numReadPorts: Int, numWritePorts: Int) extends ErythModule {
             case (v, addr) =>
                 v && io.writePorts(i).valid && (addr === io.writePorts(i).bits.addr)
         }
-        if (i != 0) assert(!same_addr.reduce(_ || _), s"Write port $i has same address as previous write ports")
+        if (i != 0) EAssert(!same_addr.reduce(_ || _), s"Write port $i has same address as previous write ports")
     }
 
     // For Difftest

@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 import erythrina.{ErythModule, ErythBundle}
 import utils.PLRU
+import top.EAssert
 
 class Replacer extends ErythModule {
     val io = IO(new Bundle {
@@ -21,7 +22,7 @@ class Replacer extends ErythModule {
     val lru_oldest = VecInit(lru_seq.map(_.io.oldest))
 
     // update
-    assert(!(io.update_req(0).valid && io.update_req(1).valid && (io.update_req(0).bits.idx === io.update_req(1).bits.idx)), "Replacer: update conflict")
+    EAssert(!(io.update_req(0).valid && io.update_req(1).valid && (io.update_req(0).bits.idx === io.update_req(1).bits.idx)), "Replacer: update conflict")
     for (j <- 0 until ICacheParams.sets) {
         lru_seq(j).io.update.valid := io.update_req.map{
             case r =>
