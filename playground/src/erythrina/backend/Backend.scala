@@ -210,7 +210,7 @@ class Backend extends ErythModule {
     iru.io.redirect <> backend_redirect
     instr_pool.io.redirect <> backend_redirect
     for (i <- 0 until DispatchWidth) {
-        isu_seq(i).io.redirect <> backend_redirect
+        isu_seq(i).io.redirect <> RegNext(backend_redirect)     // for better timing
     }
     isq_int.io.redirect <> backend_redirect
     isq_ld.io.redirect <> backend_redirect

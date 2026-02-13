@@ -58,7 +58,7 @@ class ROB extends ErythModule {
 
     val redirect = io.redirect
 
-    // Need Flush
+    // Need Flush: flush the FU & frontend when exception occurs
     val need_flush = RegInit(false.B)
 
     // entries
