@@ -123,8 +123,22 @@ class FTQ extends ErythModule {
             }
         }
     }
-    PerfCount("topdown_FetchMissBubbles", Mux(fetch_req.valid && !fetch_resp.valid && state === sWORK, FetchWidth.U, 0.U))
-    PerfCount("topdown_FetchUnalignBubbles", Mux(fetch_req.valid && fetch_resp.valid && state === sWORK, PopCount(fetch_resp.bits.instVec.map(!_.valid)), 0.U))
 
-    PerfCount("topdown_RedirectResteerBubbles", Mux((state === sRECOVERY || io.flush), FetchWidth.U, 0.U))
+    PerfCount("topdown_FetchMissBubbles", Mux(
+        decode_req.ready && !decode_req.valid && state === sWORK && !io.flush,
+        FetchWidth.U,
+        0.U
+    ))
+
+    PerfCount("topdown_FetchUnalignBubbles", Mux(
+        decode_req.ready && decode_req.valid && state === sWORK && !io.flush,
+        PopCount(decode_req.bits.instVec.map(!_.valid)),
+        0.U
+    ))
+
+    PerfCount("topdown_RedirectResteerBubbles", Mux(
+        decode_req.ready && !decode_req.valid && (state === sRECOVERY || io.flush),
+        FetchWidth.U,
+        0.U
+    ))
 }
