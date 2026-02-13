@@ -8,6 +8,7 @@ import bus.axi4._
 import erythrina.memblock.StoreFwdBundle
 import erythrina.backend.Redirect
 import erythrina.memblock.dcache._
+import top.EAssert
 
 class StoreQueue extends ErythModule {
     val io = IO(new Bundle {
@@ -115,7 +116,7 @@ class StoreQueue extends ErythModule {
             case x =>
                 x.valid && x.bits.robPtr === reorder_req(i).bits.robPtr && reorder_req(i).valid
         }
-        assert(PopCount(origin_hit_vec) <= 1.U, "StoreQueue: multiple allocs with same robPtr")
+        EAssert(PopCount(origin_hit_vec) <= 1.U, "StoreQueue: multiple allocs with same robPtr")
         val origin_hit = origin_hit_vec.reduce(_ || _)
         val origin_idx = PriorityEncoder(origin_hit_vec)
 

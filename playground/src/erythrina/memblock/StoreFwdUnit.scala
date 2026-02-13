@@ -3,6 +3,7 @@ package erythrina.memblock
 import chisel3._
 import chisel3.util._
 import erythrina.ErythModule
+import top.EAssert
 
 class StoreFwdUnit extends ErythModule {
     val io = IO(new Bundle {
@@ -47,7 +48,7 @@ class StoreFwdUnit extends ErythModule {
             is_newest_vec(i) := PopCount(age_relation) === hit_cnt && vec(i).valid
         }
         val newest_idx = PriorityEncoder(is_newest_vec)
-        assert(PopCount(is_newest_vec) <= 1.U, "More than one newest store forward detected")
+        EAssert(PopCount(is_newest_vec) <= 1.U, "More than one newest store forward detected")
 
         (VecInit(vec)(newest_idx).valid, newest_idx)
     }

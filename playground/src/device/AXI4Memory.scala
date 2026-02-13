@@ -8,6 +8,7 @@ import chisel3._
 import chisel3.util._
 import chisel3.experimental.{ExtModule, prefix}
 import bus.axi4._
+import top.EAssert
 
 class MemReqHelper extends BlackBox with HasBlackBoxInline {
 	val io = IO(new Bundle {
@@ -212,7 +213,7 @@ class AXI4Memory extends Module {
 	axi.ar.ready := rState === rIDLE
 
 	//assert(!axi.ar.valid || axi.ar.bits.len <= 7.U)
-	assert(!axi.ar.valid || axi.ar.bits.size === "b010".U)
+	EAssert(!axi.ar.valid || axi.ar.bits.size === "b010".U)
 
 	// DDR
 	ddr_rd_req_ready := readRequest(rState === rWAIT_DRAM_REQ && !ddr_rd_req_ready, rd_addr, rd_id)

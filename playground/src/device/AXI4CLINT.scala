@@ -5,6 +5,7 @@ import chisel3.util._
 import erythrina.ErythModule
 import bus.axi4.AXI4
 import utils.LookupTree
+import top.EAssert
 
 object AXI4CLINTAddr {
     def rtc_l = 0x2000000L.U
@@ -17,7 +18,7 @@ class AXI4CLINT extends ErythModule {
     })
 
     val axi = io.axi
-    assert(!(axi.aw.valid || axi.w.valid), "AXI4CLINT does not support write operations")
+    EAssert(!(axi.aw.valid || axi.w.valid), "AXI4CLINT does not support write operations")
     axi.aw <> DontCare
     axi.w <> DontCare
     axi.b <> DontCare

@@ -8,6 +8,7 @@ import erythrina.frontend.FuType
 import erythrina.backend.fu.EXUInfo
 import erythrina.backend.rob.ROBPtr
 import erythrina.backend.Redirect
+import top.EAssert
 
 class IssueQueue(exu_num:Int, name:String, size:Int) extends ErythModule {
     val io = IO(new Bundle {
@@ -89,7 +90,7 @@ class IssueQueue(exu_num:Int, name:String, size:Int) extends ErythModule {
             relations(j) := age_cnt === (tot_ready_cnt - i.U) && tot_ready_cnt > i.U && ready_vec(j)
         }
 
-        assert(PopCount(relations) <= 1.U)
+        EAssert(PopCount(relations) <= 1.U, s"IssueQueue[$name]: multiple ready instructions for EXU $i")
         deq_idx(i) := PriorityEncoder(relations)
         deq_valid(i) := relations.reduce(_||_)
     }
