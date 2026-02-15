@@ -20,8 +20,10 @@ object AXI4Params extends HasErythCoreParams {
     // These are not fixed:
     val idBits    = 4
     val addrBits  = PAddrBits
-    val dataBits  = DataBits
+    val dataBits  = 64
     val userBits  = 1
+
+    val axi_size = log2Ceil(dataBits / 8)
 
     def CACHE_RALLOCATE  = 8.U(cacheBits.W)
     def CACHE_WALLOCATE  = 4.U(cacheBits.W)

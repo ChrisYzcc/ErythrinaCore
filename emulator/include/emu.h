@@ -46,14 +46,14 @@ struct EmuArgs {
     char *image = nullptr;
 
     bool dump_wave = false;
-    bool enable_diff = true;
+    bool enable_diff = false;
     bool dump_trace = false;
     bool enable_fork = false;
 };
 
 struct MicroArchState {
     uint32_t rat[ARCH_REG_NUM];
-    uint32_t phy_reg[PHY_REG_NUM];
+    uint64_t phy_reg[PHY_REG_NUM];
 };
 
 class Emulator {

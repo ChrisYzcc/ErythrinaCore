@@ -15,23 +15,23 @@ extern "C" void halt(int reason) {
     }
 }
 
-extern "C" int mem_read(int paddr) {
-    int res = pmem_read(paddr & (~0x3u));
+extern "C" long long mem_read(const svBitVecVal* paddr) {
+    long long res = pmem_read((*paddr) & (~0x3u));
     return res;
 }
 
-extern "C" void mem_write(int paddr, const svBitVecVal* mask, int data) {
-    pmem_write(paddr & (~0x3u), data, *mask);
+extern "C" void mem_write(const svBitVecVal* paddr, const svBitVecVal* mask, const svBitVecVal* data) {
+    pmem_write((*paddr) & (~0x3u), *data, *mask);
 }
 
-extern "C" svBit mem_req(int address, int id, svBit is_write) {
+extern "C" svBit mem_req(const svBitVecVal* address, int id, svBit is_write) {
     if (dram == NULL) {
         assert(0);
     }
-    if (dram->will_accept(address, is_write)) {
+    if (dram->will_accept(*address, is_write)) {
         auto req = new CoDRAMRequest();
         auto meta = new dramsim3_meta;
-        req->address = address;
+        req->address = *address;
         req->is_write = is_write;
         meta->id = id;
         req->meta = meta;

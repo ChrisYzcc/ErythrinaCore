@@ -17,7 +17,13 @@ object ALUop {
     def sra   = "b01011".U
     def sll   = "b01100".U
 
-    def usesub(aluop: UInt) = (aluop(3,2) === 0.U) & (aluop(1,0) =/= 0.U)
+    def addw  = "b01101".U
+    def subw  = "b01110".U
+    def sllw  = "b01111".U
+    def srlw  = "b10000".U
+    def sraw  = "b10001".U
+
+    def usesub(aluop: UInt) = aluop === sub || aluop === subw || aluop === slt || aluop === sltu
 }
 
 object BRUop {
@@ -35,6 +41,8 @@ object STUop {
     def sb      = "b0101".U
     def sh      = "b0110".U
     def sw      = "b0111".U
+
+    def sd      = "b1001".U
 }
 
 object LDUop {
@@ -43,6 +51,9 @@ object LDUop {
     def lw      = "b0010".U
     def lbu     = "b0011".U
     def lhu     = "b0100".U
+    
+    def ld      = "b1000".U
+    def lwu     = "b1001".U
 }
 
 object CSRop {
@@ -70,4 +81,10 @@ object MDUop {
     def divu    = "b0101".U
     def rem     = "b0110".U
     def remu    = "b0111".U
+    
+    def mulw    = "b1000".U
+    def divw    = "b1100".U
+    def divuw   = "b1101".U
+    def remw    = "b1110".U
+    def remuw   = "b1111".U
 }

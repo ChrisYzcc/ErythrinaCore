@@ -14,8 +14,9 @@ import utils.ZeroExt
 import erythrina.backend.fu.BRUop
 import erythrina.backend.Redirect
 import erythrina.frontend.bpu.BPUTrainInfo
+import top.Config.XLEN
 
-trait InstrType {
+trait InstrType extends HasErythCoreParams {
 	def TypeI   = "b000".U
 	def TypeR   = "b001".U
 	def TypeS   = "b010".U
@@ -52,7 +53,8 @@ object FuOpType extends HasErythCoreParams {
 
 object Instructions extends InstrType {
     val decodeDefault = List(TypeER, FuType.alu, ALUop.nop)
-    def decode_table = RVI.table ++ Privileged.table ++ RV_Zicsr.table ++ RV_M.table
+    var decode_table = RVI.table ++ Privileged.table ++ RV_Zicsr.table ++ RV_M.table
+    if (XLEN == 64) decode_table = decode_table ++ RV64_I.table ++ RV64_M.table
 }
 
 class Decoder extends ErythModule with InstrType{
@@ -147,6 +149,7 @@ class Decoder extends ErythModule with InstrType{
     rsp_instExInfo.rf_wen := Mux(is_csr, csr_rf_wen, rf_wen)
 
     rsp_instExInfo.speculative := !is_csr
+    rsp_instExInfo.exception.exceptions.illegal_instr := instr_type === TypeER
 
     out.valid := in.valid
     out.bits := rsp_instExInfo

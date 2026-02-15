@@ -7,20 +7,20 @@ import erythrina.frontend.icache.ICacheParams._
 
 class IBuffer extends ErythModule {
     val io = IO(new Bundle {
-        val req = DecoupledIO(UInt(XLEN.W))
+        val req = DecoupledIO(UInt(PAddrBits.W))     // address
         val rsp = Flipped(ValidIO(UInt((CachelineSize * 8).W)))
 
         val fetch_req = Flipped(ValidIO(new InstFetchBlock)) // from FTQ
         val fetch_rsp = ValidIO(new InstFetchBlock) // to FTQ
     })
 
-    val buffer = RegInit(VecInit(Seq.fill(CachelineSize / 4)(0.U(XLEN.W))))
+    val buffer = RegInit(VecInit(Seq.fill(CachelineSize / 4)(0.U(InstrBits.W))))
 
     val (fetch_req, fetch_rsp) = (io.fetch_req, io.fetch_rsp)   // <-> FTQ
     val (req, rsp) = (io.req, io.rsp)   // <-> ICache
 
     // base pc: the address of the first byte of the cacheline
-    val base_pc = RegInit(0.U(XLEN.W))
+    val base_pc = RegInit(0.U(PAddrBits.W))
     
     val in_range = fetch_req.bits.instVec.map{
         case inst =>
@@ -44,16 +44,16 @@ class IBuffer extends ErythModule {
     }
 
     req.valid := fetch_req.valid && !has_req && !in_range
-    req.bits := Cat(fetch_req.bits.instVec(0).pc(XLEN - 1, log2Ceil(CachelineSize)), 0.U(log2Ceil(CachelineSize).W))
+    req.bits := Cat(fetch_req.bits.instVec(0).pc(PAddrBits - 1, log2Ceil(CachelineSize)), 0.U(log2Ceil(CachelineSize).W))
 
-    val addr_inflight = RegInit(0.U(XLEN.W))
+    val addr_inflight = RegInit(0.U(PAddrBits.W))
     when (req.fire) {
         addr_inflight := req.bits
     }
     when (rsp.valid) {
         for (i <- 0 until CachelineSize / 4) {
-            buffer(i) := rsp.bits((i + 1) * XLEN - 1, i * XLEN)
+            buffer(i) := rsp.bits((i + 1) * InstrBits - 1, i * InstrBits)
         }
-        base_pc := Cat(addr_inflight(XLEN - 1, log2Ceil(CachelineSize)), 0.U(log2Ceil(CachelineSize).W))
+        base_pc := Cat(addr_inflight(PAddrBits - 1, log2Ceil(CachelineSize)), 0.U(log2Ceil(CachelineSize).W))
     }
 }

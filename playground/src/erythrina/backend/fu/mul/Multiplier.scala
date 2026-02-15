@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 import erythrina.ErythModule
 import erythrina.frontend.FuOpType
+import utils.SignExt
 
 class Multiplier extends ErythModule{
     val io = IO(new Bundle {
@@ -28,13 +29,17 @@ class Multiplier extends ErythModule{
     val a_src   = Mux(io.op(1, 0) === "b11".U, a_unsigned, a_signed)
     val b_src   = Mux(io.op(1), b_unsigned, b_signed)
 
-    val use_h   = io.op(1, 0) =/= "b00".U
+    val use_h   = RegNext(RegNext(io.op(1, 0) =/= "b00".U))
+    val use_w   = RegNext(io.op(3))
 
     mulcore_inst.io.a   := a_src
     mulcore_inst.io.b   := b_src
     mulcore_inst.io.regEnables(0)   := io.in_valid
     mulcore_inst.io.regEnables(1)   := RegNext(io.in_valid)
 
-    io.res          := Mux(RegNext(RegNext(use_h)), mulcore_inst.io.res(2 * XLEN - 1, XLEN), mulcore_inst.io.res(XLEN - 1, 0))
+    io.res  := Mux(use_h, 
+        mulcore_inst.io.res(2 * XLEN - 1, XLEN), 
+        Mux(use_w, SignExt(mulcore_inst.io.res(31, 0), XLEN), mulcore_inst.io.res(XLEN - 1, 0))
+    )
     io.res_valid    := RegNext(RegNext(io.in_valid))
 }

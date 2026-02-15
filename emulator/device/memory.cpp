@@ -61,29 +61,29 @@ uint8_t* guest2host(paddr_t paddr){
     return nullptr;
 }
 
-uint32_t host_read(void *addr){
-    return *(uint32_t *)addr;
+uint64_t host_read(void *addr){
+    return *(uint64_t *)addr;
 }
 
-uint32_t host_write(void *addr, uint32_t data, uint32_t mask){
-    uint32_t real_mask = 0;
-    for (int i = 0; i < 4; i++){
+uint64_t host_write(void *addr, uint64_t data, uint32_t mask){
+    uint64_t real_mask = 0;
+    for (int i = 0; i < 8; i++){
         if (mask & 1){
-            real_mask |= 0xff << (i * 8);
+            real_mask |= 0xffULL << (i * 8);
         }
         mask >>= 1;
     }
-    uint32_t real_data = *(uint32_t *)addr & (~real_mask) | data & real_mask;
-    *(uint32_t *)addr = real_data;
+    uint64_t real_data = *(uint64_t *)addr & (~real_mask) | data & real_mask;
+    *(uint64_t *)addr = real_data;
     return real_data;
 }
 
-uint32_t pmem_read(paddr_t addr) {
+uint64_t pmem_read(paddr_t addr) {
     if (is_device(addr) != -1) {
         return device_read(addr);
     }
 
-    uint32_t res = 0;
+    uint64_t res = 0;
     uint8_t *p = guest2host(addr);
 
     if (p != nullptr) {
@@ -93,12 +93,12 @@ uint32_t pmem_read(paddr_t addr) {
     return res;
 }
 
-uint32_t pmem_write(paddr_t addr, uint32_t data, uint32_t mask) {
+uint64_t pmem_write(paddr_t addr, uint64_t data, uint32_t mask) {
     if (is_device(addr) != -1) {
         return device_write(addr, data, mask);
     }
     
-    uint32_t res = 0;
+    uint64_t res = 0;
     uint8_t *p = guest2host(addr);
 
     if (p != nullptr) {

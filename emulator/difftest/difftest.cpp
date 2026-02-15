@@ -43,8 +43,10 @@ void diff_step() {
 
 // get commit diff_info from NPC
 int get_diff_infos(diff_infos *infos, int req_idx) {
-    svLogic valid, rf_wen, mem_en;
-    svLogicVecVal pc, inst, rf_waddr, rf_wdata, mem_addr, mem_data, mem_mask, idx;
+    svBit valid, rf_wen, mem_en;
+    int inst;
+    long long pc, rf_wdata, mem_addr, mem_data;
+    svLogicVecVal rf_waddr, mem_mask, idx;
     idx.aval = req_idx;
 
     svScope scope = svGetScopeFromName("TOP.SimTop.difftest.messager");
@@ -58,16 +60,16 @@ int get_diff_infos(diff_infos *infos, int req_idx) {
         &mem_en, &mem_addr, &mem_data, &mem_mask
     );
 
-    infos->pc = pc.aval;
-    infos->instr = inst.aval;
+    infos->pc = pc;
+    infos->instr = inst;
 
     infos->rf_wen = rf_wen;
     infos->rf_waddr = rf_waddr.aval;
-    infos->rf_wdata = rf_wdata.aval;
+    infos->rf_wdata = rf_wdata;
 
     infos->mem_en = mem_en;
-    infos->mem_addr = mem_addr.aval;
-    infos->mem_data = mem_data.aval;
+    infos->mem_addr = mem_addr;
+    infos->mem_data = mem_data;
     infos->mem_mask = mem_mask.aval;
     
     return valid;

@@ -16,7 +16,7 @@
 #include <csignal>
 #include <iostream>
 
-void handle_interrupt(int signum) {
+void signal_handler(int signum) {
     if (signum == SIGINT) {
         emu->trap(TRAP_SIG_INT, 0);
     }
@@ -68,9 +68,10 @@ EmuArgs parse_args(int argc, const char *argv[]) {
                 printf("Usage: %s [OPTION...] IMAGE\n", argv[0]);
                 printf("\t-c <max-cycles>         Run <max-cycles> cycles.\n");
                 printf("\t-i <max-inst>           Run <max-inst> instructions.\n");
-                printf("\t-w                      Dump waveform.\n");
+                printf("\t-w                      Dump full waveform.\n");
                 printf("\t-t                      Dump trace.\n");
                 printf("\t-d <ref-so>             Enable diff.\n");
+                printf("\t-f                      Enable fork debug.\n");
                 exit(0);
         }
     }
@@ -81,7 +82,7 @@ EmuArgs parse_args(int argc, const char *argv[]) {
 
 Emulator::Emulator(int argc, const char *argv[])
     : cycles(0), state(EMU_RUN), inst_count(0), nocmt_cycles(0) {
-    signal(SIGINT, handle_interrupt);
+    signal(SIGINT, signal_handler);
     
     args = parse_args(argc, argv);
 
@@ -297,7 +298,7 @@ void Emulator::trap(TrapCode trap_code, uint32_t trap_info) {
             }
             printf("RF:\n");
             for (int i = 0; i < PHY_REG_NUM; i+=4) {
-                printf("[%02d] 0x%08x, [%02d] 0x%08x, [%02d]: 0x%08x, [%02d]: 0x%08x\n",
+                printf("[%02d] 0x%016lx, [%02d] 0x%016lx, [%02d]: 0x%016lx, [%02d]: 0x%016lx\n",
                     i, npc_uarch_state.phy_reg[i], i+1, npc_uarch_state.phy_reg[i+1],
                     i+2, npc_uarch_state.phy_reg[i+2], i+3, npc_uarch_state.phy_reg[i+3]);
             }
@@ -341,9 +342,9 @@ void Emulator::get_npc_regfiles() {
     // Get RF from NPC
     for (int i = 0; i < PHY_REG_NUM; i++) {
         set_rf_idx((svLogicVecVal *)&i);
-        svLogicVecVal rf_val;
-        get_rf_value((svLogicVecVal *)&rf_val);
-        npc_uarch_state.phy_reg[i] = (uint32_t)rf_val.aval;
+        long long rf_val;
+        get_rf_value(&rf_val);
+        npc_uarch_state.phy_reg[i] = (uint64_t)rf_val;
     }
 
     // Generate NPC state
@@ -432,19 +433,19 @@ void Emulator::diff_states(CPUState *ref, bool is_sim_arch) {
     // check regs
     for (int i = 0; i < ARCH_REG_NUM; i++) {
         if (dut_state_ptr->gpr[i] != ref->gpr[i]) {
-            printf("[Error] %s Reg %s: NPC: 0x%08x, REF: 0x%08x\n", prefix, get_regname(i), dut_state_ptr->gpr[i], ref->gpr[i]);
+            printf("[Error] %s Reg %s: NPC: 0x%016lx, REF: 0x%016lx\n", prefix, get_regname(i), dut_state_ptr->gpr[i], ref->gpr[i]);
             has_err = 1;
         }
     }
 
     // check pc
     if (dut_state_ptr->pc != ref->pc) {
-        printf("[Error] %s PC: NPC: 0x%08x, REF: 0x%08x\n", prefix, dut_state_ptr->pc, ref->pc);
+        printf("[Error] %s PC: NPC: 0x%016lx, REF: 0x%016lx\n", prefix, dut_state_ptr->pc, ref->pc);
         has_err = 1;
     }
     else {
         if (has_err) {
-            printf("[AT   ] %s PC: NPC: 0x%08x, REF: 0x%08x\n", prefix, dut_state_ptr->pc, ref->pc);
+            printf("[AT   ] %s PC: NPC: 0x%016lx, REF: 0x%016lx\n", prefix, dut_state_ptr->pc, ref->pc);
         }
     }
 

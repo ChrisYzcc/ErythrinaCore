@@ -54,16 +54,16 @@ class MetaArray extends ErythModule {
 class DataArray extends ErythModule {
     val io = IO(new Bundle {
         val rd_req = Flipped(ValidIO(UInt(log2Ceil(sets).W)))
-        val rd_rsp = ValidIO(Vec(ways, Vec(CachelineSize / 4, UInt(XLEN.W))))
+        val rd_rsp = ValidIO(Vec(ways, Vec(CachelineSize / WORDLEN, UInt(XLEN.W))))
 
         val wr_req = Flipped(ValidIO(new Bundle{
             val idx = UInt(log2Ceil(sets).W)
             val way = UInt(log2Ceil(ways).W)
-            val data = Vec(CachelineSize / 4, UInt(XLEN.W))
+            val data = Vec(CachelineSize / WORDLEN, UInt(XLEN.W))
         }))
     })
 
-    val data_array = Seq.fill(ways)(SyncReadMem(sets, Vec(CachelineSize / 4, UInt(XLEN.W))))
+    val data_array = Seq.fill(ways)(SyncReadMem(sets, Vec(CachelineSize / WORDLEN, UInt(XLEN.W))))
     val rd_req_reg = RegEnable(io.rd_req.bits, 0.U, io.rd_req.valid)
 
     // Read
@@ -84,7 +84,7 @@ class DataArray extends ErythModule {
 class SimpleDCacheTask extends ErythBundle {
     val content_valid = Bool()
     
-    val addr = UInt(XLEN.W)
+    val addr = UInt(PAddrBits.W)
     val data = UInt(XLEN.W)
     val mask = UInt(MASKLEN.W)
     val cmd = UInt(CmdBits.W)
@@ -214,12 +214,12 @@ class Stage3 extends ErythModule {
         val in = Flipped(DecoupledIO(new SimpleDCacheTask))
         val out = ValidIO(new DCacheResp)
 
-        val data_rd_rsp = Flipped(ValidIO(Vec(ways, Vec(CachelineSize / 4, UInt(XLEN.W)))))
+        val data_rd_rsp = Flipped(ValidIO(Vec(ways, Vec(CachelineSize / WORDLEN, UInt(XLEN.W)))))
 
         val data_wr_req = ValidIO(new Bundle{
             val idx = UInt(log2Ceil(sets).W)
             val way = UInt(log2Ceil(ways).W)
-            val data = Vec(CachelineSize / 4, UInt(XLEN.W))
+            val data = Vec(CachelineSize / WORDLEN, UInt(XLEN.W))
         })
         
         val meta_wr_req = ValidIO(new Bundle{
@@ -335,7 +335,7 @@ class Stage3 extends ErythModule {
     }
 
     /* ------------- READ ------------- */
-    val recv_data_vec = RegInit(VecInit(Seq.fill(CachelineSize / 4)(0.U(XLEN.W))))
+    val recv_data_vec = RegInit(VecInit(Seq.fill(CachelineSize / WORDLEN)(0.U(XLEN.W))))
 
     val ar_addr = RegInit(0.U(XLEN.W))
     when (RegNext(in.fire)) {
@@ -348,12 +348,12 @@ class Stage3 extends ErythModule {
     val ar_len = RegInit(0.U(AXI4Params.lenBits.W))
     when (RegNext(in.fire)) {
         ar_len := Mux(cacheable,
-                    (CachelineSize / 4 - 1).U,
+                    (CachelineSize / WORDLEN - 1).U,
                     0.U
                 )
     }
 
-    val r_ptr = RegInit(0.U(log2Ceil(CachelineSize / 4).W))
+    val r_ptr = RegInit(0.U(log2Ceil(CachelineSize / WORDLEN).W))
     when (axi.ar.fire) {
         r_ptr := 0.U
     }.elsewhen (axi.r.fire) {
@@ -364,7 +364,7 @@ class Stage3 extends ErythModule {
     axi.ar.bits := 0.U.asTypeOf(axi.ar.bits)
     axi.ar.bits.addr := ar_addr
     axi.ar.bits.len := ar_len
-    axi.ar.bits.size := "b010".U
+    axi.ar.bits.size := AXI4Params.axi_size.U
 
     axi.r.ready := state_r === sRECV_R
     when (axi.r.fire) {
@@ -385,12 +385,12 @@ class Stage3 extends ErythModule {
     val w_len = RegInit(0.U(AXI4Params.lenBits.W))
     when (RegNext(in.fire)) {
         w_len := Mux(cacheable,
-                    (CachelineSize / 4).U,
+                    (CachelineSize / WORDLEN).U,
                     0.U
                 )
     }
 
-    val w_ptr = RegInit(0.U(log2Ceil(CachelineSize / 4).W))
+    val w_ptr = RegInit(0.U(log2Ceil(CachelineSize / WORDLEN).W))
     when (RegNext(in.fire)) {
         w_ptr := 0.U
     }.elsewhen (axi.b.fire) {
@@ -400,7 +400,7 @@ class Stage3 extends ErythModule {
     axi.aw.valid := state_w === sREQ_W
     axi.aw.bits := 0.U.asTypeOf(axi.aw.bits)
     axi.aw.bits.addr := aw_addr
-    axi.aw.bits.size := "b010".U
+    axi.aw.bits.size := AXI4Params.axi_size.U
 
     axi.w.valid := state_w === sREQ_W
     axi.w.bits := 0.U.asTypeOf(axi.w.bits)
@@ -409,11 +409,11 @@ class Stage3 extends ErythModule {
 
     axi.b.ready := state_w === sRECV_W
 
-    wr_last := Mux(cacheable, w_ptr === (CachelineSize / 4 - 1).U, true.B)
+    wr_last := Mux(cacheable, w_ptr === (CachelineSize / WORDLEN - 1).U, true.B)
 
     /* ------------- Response to Core & Stage Control ------------- */
     val offset = get_cacheline_offset(in.bits.addr)
-    val word_offset = offset(log2Ceil(CachelineSize) - 1, 2)
+    val word_offset = offset(log2Ceil(CachelineSize) - 1, DataAlignBits)
 
     val hit_ready = hit
     val hit_data = cacheline(word_offset)
@@ -463,10 +463,10 @@ class Stage3 extends ErythModule {
     meta_wr_req.bits.meta := Mux(state === sRESET, 0.U.asTypeOf(new MetaEntry), new_meta)
 
     // Data
-    val new_cacheline = WireInit(0.U.asTypeOf(Vec(CachelineSize / 4, UInt(XLEN.W))))
+    val new_cacheline = WireInit(0.U.asTypeOf(Vec(CachelineSize / WORDLEN, UInt(XLEN.W))))
     val new_data = MaskExpand(in.bits.mask) & in.bits.data | MaskExpand(~in.bits.mask) & Mux(in.bits.hit, cacheline(word_offset), recv_data_vec(word_offset))
 
-    for (i <- 0 until CachelineSize / 4) {
+    for (i <- 0 until CachelineSize / WORDLEN) {
         new_cacheline(i) := Mux(i.U === word_offset, 
             new_data,
             Mux(in.bits.hit, cacheline(i), recv_data_vec(i))

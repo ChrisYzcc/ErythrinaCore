@@ -10,6 +10,7 @@ import utils.LookupTree
 import erythrina.memblock.StoreFwdBundle
 import erythrina.backend.Redirect
 import erythrina.AddrSpace
+import utils.SignExt
 
 class STU extends ErythModule {
     val io = IO(new Bundle {
@@ -40,22 +41,45 @@ class STU extends ErythModule {
 
     // Calculate
     val st_addr = req.bits.src1 + req.bits.imm
-    val st_data = LookupTree(req.bits.fuOpType, List(
-        STUop.sb    -> (req.bits.src2(7, 0) << (st_addr(1, 0) << 3.U)),
-        STUop.sh    -> (req.bits.src2(15, 0) << ((st_addr(1, 0) & "b10".U) << 3.U)),
-        STUop.sw    -> (req.bits.src2)
-    ))
-    val st_mask = LookupTree(req.bits.fuOpType, List(
-        STUop.sb    -> ("b0001".U << st_addr(1, 0)),
-        STUop.sh    -> ("b0011".U << (st_addr(1, 0) & "b10".U)),
-        STUop.sw    -> ("b1111".U)
-    ))
 
-    val st_addr_err = !AddrSpace.in_addr_space(st_addr)
+    var st_data_list = List(
+        STUop.sb    -> (req.bits.src2(7, 0) << (st_addr(DataAlignBits - 1, 0) << 3.U)),
+        STUop.sh    -> (req.bits.src2(15, 0) << (st_addr(DataAlignBits - 1, 1) << 4.U))
+    )
+    if (useRV64) {
+        st_data_list = st_data_list ++ List(
+            STUop.sw    -> (req.bits.src2(31, 0) << (st_addr(DataAlignBits - 1, 2) << 5.U)),
+            STUop.sd    -> req.bits.src2
+        )
+    } else {
+        st_data_list = st_data_list ++ List(
+            STUop.sw    -> req.bits.src2
+        )
+    }
+     val st_data = LookupTree(req.bits.fuOpType, st_data_list)
+
+     var st_mask_list = List(
+        STUop.sb    -> (1.U << st_addr(DataAlignBits - 1, 0)),
+        STUop.sh    -> (3.U << (st_addr(DataAlignBits - 1, 1) << 1.U))
+    )
+    if (useRV64) {
+        st_mask_list = st_mask_list ++ List(
+            STUop.sw    -> (15.U << (st_addr(DataAlignBits - 1, 2) << 2.U)),
+            STUop.sd    -> Fill(WORDLEN, 1.U)
+        )
+    } else {
+        st_mask_list = st_mask_list ++ List(
+            STUop.sw    -> 15.U
+        )
+    }
+
+     val st_mask = LookupTree(req.bits.fuOpType, st_mask_list)
+
+     val st_addr_err = !AddrSpace.in_addr_space(st_addr)
 
     // Forwarding
     st_fwd(0).valid := s0_valid && !st_addr_err
-    st_fwd(0).bits.addr := Cat(st_addr(31, 2), 0.U(2.W))
+    st_fwd(0).bits.addr := Cat(st_addr(PAddrBits - 1, DataAlignBits), 0.U(DataAlignBits.W))
     st_fwd(0).bits.data := st_data
     st_fwd(0).bits.mask := st_mask
     st_fwd(0).bits.robPtr := req.bits.robPtr
@@ -72,7 +96,7 @@ class STU extends ErythModule {
     val cmt_instBlk = WireInit(RegNext(req.bits))
 
     cmt_instBlk.res := s1_st_data
-    cmt_instBlk.addr := Cat(s1_st_addr(31, 2), 0.U(2.W))
+    cmt_instBlk.addr := Cat(s1_st_addr(PAddrBits - 1, DataAlignBits), 0.U(DataAlignBits.W))
     cmt_instBlk.mask := s1_st_mask
     cmt_instBlk.exception.exceptions.store_access_fault := s1_st_addr_err
     cmt_instBlk.state.finished := true.B
@@ -82,7 +106,7 @@ class STU extends ErythModule {
 
     // Forwarding
     st_fwd(1).valid := s1_valid && !s1_st_addr_err
-    st_fwd(1).bits.addr := Cat(s1_st_addr(31, 2), 0.U(2.W))
+    st_fwd(1).bits.addr := Cat(s1_st_addr(PAddrBits - 1, DataAlignBits), 0.U(DataAlignBits.W))
     st_fwd(1).bits.data := s1_st_data
     st_fwd(1).bits.mask := s1_st_mask
     st_fwd(1).bits.robPtr := cmt_instBlk.robPtr

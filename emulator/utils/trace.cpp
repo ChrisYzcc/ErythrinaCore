@@ -10,7 +10,7 @@ int irbuf_valid[IRINGBUF_LEN];
 
 void trace_init() {
     irbuf_ptr = 0;
-    init_disasm("riscv32-pc-linux-gnu");
+    init_disasm("riscv64-pc-linux-gnu");
 }
 
 char inst_disasm[100];

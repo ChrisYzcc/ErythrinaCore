@@ -8,6 +8,7 @@ object HaltOp{  // ref to RISC-V exception code
     
     val load_af = 5.U(32.W)
     val store_af = 7.U(32.W)
+    val illegal_inst = 2.U(32.W)
 }
 
 class Halter extends BlackBox with HasBlackBoxInline {

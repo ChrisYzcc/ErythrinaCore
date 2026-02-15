@@ -13,15 +13,15 @@ abstract class DifftestModule extends Module with HasDiffParams {
 }
 
 class DifftestInfos extends DifftestBundle {
-    val pc = UInt(XLEN.W)
-    val inst = UInt(XLEN.W)
+    val pc = UInt(PAddrBits.W)
+    val inst = UInt(InstrBits.W)
 
     val rf_wen = Bool()
     val rf_waddr = UInt(ArchRegAddrBits.W)
     val rf_wdata = UInt(XLEN.W)
 
     val mem_en = Bool()
-    val mem_addr = UInt(XLEN.W)
+    val mem_addr = UInt(PAddrBits.W)
     val mem_data = UInt(XLEN.W)
     val mem_mask = UInt(MASKLEN.W)
 }
@@ -42,13 +42,13 @@ class DifftestBox extends DifftestModule {
             case (info, i) =>
                 s"""
                 |   input   diff_infos_${i}_valid,
-                |   input   [${XLEN-1}:0] diff_infos_${i}_bits_pc,
-                |   input   [${XLEN-1}:0] diff_infos_${i}_bits_inst,
+                |   input   [${PAddrBits-1}:0] diff_infos_${i}_bits_pc,
+                |   input   [${InstrBits-1}:0] diff_infos_${i}_bits_inst,
                 |   input   diff_infos_${i}_bits_rf_wen,
                 |   input   [${ArchRegAddrBits-1}:0] diff_infos_${i}_bits_rf_waddr,
                 |   input   [${XLEN-1}:0] diff_infos_${i}_bits_rf_wdata,
                 |   input   diff_infos_${i}_bits_mem_en,
-                |   input   [${XLEN-1}:0] diff_infos_${i}_bits_mem_addr,
+                |   input   [${PAddrBits-1}:0] diff_infos_${i}_bits_mem_addr,
                 |   input   [${XLEN-1}:0] diff_infos_${i}_bits_mem_data,
                 |   input   [${MASKLEN-1}:0] diff_infos_${i}_bits_mem_mask
                 """.stripMargin
@@ -56,13 +56,13 @@ class DifftestBox extends DifftestModule {
 
         val logicDefString = s"""
         |   logic valids [${CommitWidth-1}:0];
-        |   logic [${XLEN-1}:0] pcs [${CommitWidth-1}:0];
-        |   logic [${XLEN-1}:0] insts [${CommitWidth-1}:0];
+        |   logic [${PAddrBits-1}:0] pcs [${CommitWidth-1}:0];
+        |   logic [${InstrBits-1}:0] insts [${CommitWidth-1}:0];
         |   logic rf_wens [${CommitWidth-1}:0];
         |   logic [${ArchRegAddrBits-1}:0] rf_waddrs [${CommitWidth-1}:0];
         |   logic [${XLEN-1}:0] rf_wdatas [${CommitWidth-1}:0];
         |   logic mem_ens [${CommitWidth-1}:0];
-        |   logic [${XLEN-1}:0] mem_addrs [${CommitWidth-1}:0];
+        |   logic [${PAddrBits-1}:0] mem_addrs [${CommitWidth-1}:0];
         |   logic [${XLEN-1}:0] mem_datas [${CommitWidth-1}:0];
         |   logic [${MASKLEN-1}:0] mem_masks [${CommitWidth-1}:0];
         """.stripMargin
@@ -98,15 +98,15 @@ class DifftestBox extends DifftestModule {
         |   endtask
         |
         |   task get_diff_info(
-        |       output logic valid,
-        |       output logic [${XLEN-1}:0] pc,
-        |       output logic [${XLEN-1}:0] inst,
-        |       output logic rf_wen,
+        |       output bit valid,
+        |       output longint pc,
+        |       output int inst,
+        |       output bit rf_wen,
         |       output logic [${ArchRegAddrBits-1}:0] rf_waddr,
-        |       output logic [${XLEN-1}:0] rf_wdata,
-        |       output logic mem_en,
-        |       output logic [${XLEN-1}:0] mem_addr,
-        |       output logic [${XLEN-1}:0] mem_data,
+        |       output longint rf_wdata,
+        |       output bit mem_en,
+        |       output longint mem_addr,
+        |       output longint mem_data,
         |       output logic [${MASKLEN-1}:0] mem_mask
         |   );
         |       valid = valids[diff_idx];

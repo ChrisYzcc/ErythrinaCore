@@ -82,7 +82,7 @@ class LDU extends ErythModule {
     val req_task = RegEnable(req.bits, 0.U.asTypeOf(new InstExInfo), req.fire)
     val addr = (req_task.src1 + req_task.src2)
 
-    val req_addr = Cat(addr(XLEN - 1, 2), 0.U(2.W))
+    val req_addr = Cat(addr(XLEN - 1, DataAlignBits), 0.U(DataAlignBits.W))
     req_addr_err := !AddrSpace.in_addr_space(req_addr)
 
     dcache_req.valid := state === sREQ && !redirect.valid && !req_addr_err
@@ -102,7 +102,7 @@ class LDU extends ErythModule {
     val (fwd_query, fwd_result) = (io.st_fwd_query, io.st_fwd_result)
     fwd_query.valid := state === sRECV && !redirect.valid
     fwd_query.bits := 0.U.asTypeOf(new StoreFwdBundle)
-    fwd_query.bits.addr := Cat(recv_addr(XLEN - 1, 2), 0.U(2.W))
+    fwd_query.bits.addr := Cat(recv_addr(XLEN - 1, DataAlignBits), 0.U(DataAlignBits.W))
     fwd_query.bits.robPtr := recv_task.robPtr
 
     val mask_frm_fwd = fwd_result.mask
@@ -115,45 +115,54 @@ class LDU extends ErythModule {
 
     val data = axi_data & axi_mask_exp | data_frm_fwd & fwd_mask_exp
 
-    val byte_res = LookupTree(recv_addr(1, 0), List(
-        "b00".U -> data(7, 0),
-        "b01".U -> data(15, 8),
-        "b10".U -> data(23, 16),
-        "b11".U -> data(31, 24)
-    ))
+    val byte_res_list = (0 until WORDLEN).map(i => (i.U, data(8 * (i + 1) - 1, 8 * i)))
+    val byte_res = LookupTree(recv_addr(DataAlignBits - 1, 0), byte_res_list)
 
-    val byte_mask = LookupTree(recv_addr(1, 0), List(
-        "b00".U -> "b0001".U,
-        "b01".U -> "b0010".U,
-        "b10".U -> "b0100".U,
-        "b11".U -> "b1000".U
-    ))
+    val byte_mask_list = (0 until WORDLEN).map(i => (i.U, ZeroExt((1 << i).U, WORDLEN)))
+    val byte_mask = LookupTree(recv_addr(DataAlignBits - 1, 0), byte_mask_list)
 
-    val hword_res = LookupTree(recv_addr(1), List(
-        "b0".U -> data(15, 0),
-        "b1".U -> data(31, 16)
-    ))
+    val hword_res_list = (0 until WORDLEN / 2).map(i => (i.U, data(16 * (i + 1) - 1, 16 * i)))
+    val hword_res = LookupTree(recv_addr(DataAlignBits - 1, 1), hword_res_list)
 
-    val hword_mask = LookupTree(recv_addr(1), List(
-        "b0".U -> "b0011".U,
-        "b1".U -> "b1100".U
-    ))
+    val hword_mask_list = (0 until WORDLEN / 2).map(i => (i.U, ZeroExt((3 << (2 * i)).U, WORDLEN)))
+    val hword_mask = LookupTree(recv_addr(DataAlignBits - 1, 1), hword_mask_list)
 
-    val res = LookupTree(recv_task.fuOpType, List(
+    val word_res_list = (0 until WORDLEN / 4).map(i => (i.U, data(32 * (i + 1) - 1, 32 * i)))
+    val word_res = LookupTree(recv_addr(DataAlignBits - 1, 2), word_res_list)
+
+    val word_mask_list = (0 until WORDLEN / 4).map(i => (i.U, ZeroExt((15 << (4 * i)).U, WORDLEN)))
+    val word_mask = LookupTree(recv_addr(DataAlignBits - 1, 2), word_mask_list)
+
+    var res_list = List(
         LDUop.lb -> SignExt(byte_res, XLEN),
         LDUop.lbu -> ZeroExt(byte_res, XLEN),
         LDUop.lh -> SignExt(hword_res, XLEN),
         LDUop.lhu -> ZeroExt(hword_res, XLEN),
-        LDUop.lw -> data,
-    ))
+        LDUop.lw -> SignExt(word_res, XLEN)
+    )
 
-    val mask = LookupTree(recv_task.fuOpType, List(
+    if (useRV64) {
+        res_list = res_list ++ List(
+            LDUop.lwu -> ZeroExt(word_res, XLEN),
+            LDUop.ld -> data
+        )
+    }
+    val res = LookupTree(recv_task.fuOpType, res_list)
+
+    var mask_list = List(
         LDUop.lb -> byte_mask,
         LDUop.lbu -> byte_mask,
         LDUop.lh -> hword_mask,
         LDUop.lhu -> hword_mask,
-        LDUop.lw -> "b1111".U
-    ))
+        LDUop.lw -> word_mask
+    )
+    if (useRV64) {
+        mask_list = mask_list ++ List(
+            LDUop.lwu -> word_mask,
+            LDUop.ld -> Fill(WORDLEN, 1.U)
+        )
+    }
+    val mask = LookupTree(recv_task.fuOpType, mask_list)
     fwd_query.bits.mask := mask
 
     val r_has_err = recv_task.exception.exceptions.load_access_fault
@@ -161,13 +170,13 @@ class LDU extends ErythModule {
     val recv_res_blk = WireInit(recv_task)
     recv_res_blk.res := res
     recv_res_blk.mask := mask
-    recv_res_blk.addr := Cat(recv_addr(XLEN - 1, 2), 0.U(2.W))
+    recv_res_blk.addr := Cat(recv_addr(PAddrBits - 1, DataAlignBits), 0.U(DataAlignBits.W))
     recv_res_blk.state.finished := true.B
 
     // sERR
     val err_task = RegEnable(req_out_task, 0.U.asTypeOf(new InstExInfo), state === sREQ && req_addr_err)
     val err_res_blk = WireInit(err_task)
-    err_res_blk.addr := Cat(err_task.addr(XLEN - 1, 2), 0.U(2.W))
+    err_res_blk.addr := Cat(err_task.addr(PAddrBits - 1, DataAlignBits), 0.U(DataAlignBits.W))
     err_res_blk.state.finished := true.B
     err_res_blk.exception.exceptions.load_access_fault := true.B
 

@@ -17,7 +17,7 @@ class ALU extends ErythModule {
     val (src1, src2, aluop) = (io.src1, io.src2, io.aluop)
 
     val usesub = ALUop.usesub(aluop)
-    val shamt = src2(4, 0)
+    val shamt = if (useRV64) src2(5, 0) else src2(4, 0)
     val src2in = src2 ^ Fill(XLEN, usesub)
 
     val add_sub_res = (src1 +& src2in) + usesub
@@ -25,7 +25,7 @@ class ALU extends ErythModule {
     val overflow  = (src1(XLEN-1) & src2in(XLEN-1) & ~add_sub_res(XLEN-1)) | (~src1(XLEN-1) & ~src2in(XLEN-1) & add_sub_res(XLEN-1))
     val slt_res   = overflow ^ add_sub_res(XLEN-1)
 
-    val res = LookupTreeDefault(aluop, add_sub_res, List(
+    val res_list_32 =  List(
         ALUop.dir   -> src1,
         ALUop.slt   -> ZeroExt(slt_res, XLEN),
         ALUop.sltu  -> ZeroExt(sltu_res, XLEN),
@@ -35,7 +35,19 @@ class ALU extends ErythModule {
         ALUop.srl   -> (src1 >> shamt),
         ALUop.sra   -> (SignExt(src1, 2 * XLEN) >> shamt)(XLEN - 1, 0),
         ALUop.sll   -> (src1 << shamt)(XLEN-1, 0)
-    ))
+    )
+
+    val res_list_64 = List(
+        ALUop.addw  -> SignExt(add_sub_res(31, 0), XLEN),
+        ALUop.subw  -> SignExt(add_sub_res(31, 0), XLEN),
+        ALUop.sllw  -> SignExt((src1 << shamt)(31, 0), XLEN),
+        ALUop.srlw  -> ZeroExt(src1(31, 0) >> shamt, XLEN),
+        ALUop.sraw  -> SignExt((SignExt(src1(31, 0), 64) >> shamt)(31, 0), XLEN)
+    )
+
+    val res_list = if (useRV64) res_list_32 ++ res_list_64 else res_list_32
+
+    val res = LookupTreeDefault(aluop, add_sub_res, res_list)
 
     io.res  := res
 }

@@ -7,8 +7,8 @@
 #define PHY_REG_NUM 64
 
 typedef struct{
-    uint32_t gpr[ARCH_REG_NUM];
-    uint32_t pc;
+    uint64_t gpr[ARCH_REG_NUM];
+    uint64_t pc;
 }CPUState;
 
 extern const char *regs[];

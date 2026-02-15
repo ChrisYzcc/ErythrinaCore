@@ -34,8 +34,8 @@ class RobException extends ErythBundle {
 }
 
 class InstExInfo extends ErythBundle {
-    val instr   = UInt(XLEN.W)
-    val pc      = UInt(XLEN.W)
+    val instr   = UInt(InstrBits.W)
+    val pc      = UInt(PAddrBits.W)
     
     // Execution Unit
     val fuType  = FuType.apply()
@@ -75,7 +75,7 @@ class InstExInfo extends ErythBundle {
 
     // result
     val res = UInt(XLEN.W)
-    val addr = UInt(XLEN.W)
+    val addr = UInt(PAddrBits.W)
     val mask = UInt(MASKLEN.W)
 
     // idx
@@ -84,13 +84,13 @@ class InstExInfo extends ErythBundle {
     val sqPtr = new SQPtr
 
     // branch prediction
-    val bpu_hit = Bool()      // BPU prediction hit
-    val bpu_taken = Bool()      // BPU prediction result
-    val bpu_target = UInt(XLEN.W)
-    val bpu_ghr = UInt(XLEN.W)
+    val bpu_hit     = Bool()      // BPU prediction hit
+    val bpu_taken   = Bool()      // BPU prediction result
+    val bpu_target  = UInt(InstrBits.W)
+    val bpu_ghr     = UInt(BPUHistoryBits.W)
 
     val real_taken = Bool()     // real branch result
-    val real_target = UInt(XLEN.W)
+    val real_target = UInt(PAddrBits.W)
 
     // exception
     val exception = new RobException
@@ -116,5 +116,5 @@ class InstExInfo extends ErythBundle {
 }
 
 class Redirect extends ErythBundle {
-    val npc = UInt(XLEN.W)  // next pc
+    val npc = UInt(PAddrBits.W)  // next pc
 }

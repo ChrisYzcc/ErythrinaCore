@@ -21,8 +21,14 @@ object AddrSpace {
 }
 
 trait HasErythCoreParams {
+    val useRV64 = Config.XLEN == 64
+    
     val XLEN = Config.XLEN
     val MASKLEN = XLEN / 8
+    val WORDLEN = XLEN / 8
+
+    val InstrBits = 32
+    val DataAlignBits = log2Ceil(WORDLEN)
 
     val RESETVEC = Config.RESETVEC
 
@@ -36,6 +42,7 @@ trait HasErythCoreParams {
     val BypassWidth = 4
 
     val PAddrBits = XLEN
+    val VAddrBits = XLEN
     val DataBits = XLEN
     
     val FuOpTypeBits = 7
@@ -49,4 +56,6 @@ trait HasErythCoreParams {
     val ROBSize = 64
     val LoadQueSize = 8
     val StoreQueSize = 8
+
+    val BPUHistoryBits = 16
 }

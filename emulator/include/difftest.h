@@ -8,16 +8,16 @@
 extern const char *diff_ref_so;
 
 struct diff_infos {
-    uint32_t pc;
+    uint64_t pc;
     uint32_t instr;
 
     bool rf_wen;
     uint32_t rf_waddr;
-    uint32_t rf_wdata;
+    uint64_t rf_wdata;
 
     bool mem_en;
-    uint32_t mem_addr;
-    uint32_t mem_data;
+    uint64_t mem_addr;
+    uint64_t mem_data;
     uint32_t mem_mask;
 };
 

@@ -24,7 +24,7 @@ class DivCore(len : Int) extends Module{
     })
 
     // FSM
-    val compute_cnt = RegInit(0.U(6.W))
+    val compute_cnt = RegInit(len.U)
     val sIDLE :: sCOMPUTE :: sDONE :: Nil = Enum(3)
     val state = RegInit(sIDLE)
     switch (state){
@@ -57,14 +57,10 @@ class DivCore(len : Int) extends Module{
     val a = Mux(a_sign, (~io.a + 1.U).asUInt, io.a)
     val b = Mux(b_sign, (~io.b + 1.U).asUInt, io.b)
     val neg_b = SignExt((~b + 1.U).asUInt, len + 1)
-    dontTouch(a)
-    dontTouch(b)
-    dontTouch(neg_b)
 
     val quot_r  = Reg(UInt(len.W))
     val rem_r   = Reg(UInt((len + 1).W))
     val sub_res = rem_r + neg_b
-    dontTouch(sub_res)
 
     // Quotient
     when (state === sIDLE && io.in_v && !io.flush){

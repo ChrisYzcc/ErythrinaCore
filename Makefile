@@ -6,9 +6,9 @@ PRJ = playground
 -include scripts/verilator.mk
 -include scripts/perf.mk
 
+DIFF_SO ?= $(NEMU_HOME)/build/riscv64-nemu-interpreter-so
+ARG ?= -w -t -d $(DIFF_SO)
 IMG ?= 
-ARG ?= -w -t
-DIFF_SO ?= $(NEMU_HOME)/build/riscv32-nemu-interpreter-so
 
 clean:
 	-rm -rf $(BUILD_DIR)

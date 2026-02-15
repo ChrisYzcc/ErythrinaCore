@@ -6,7 +6,7 @@ import erythrina.ErythBundle
 import erythrina.backend.rob.ROBPtr
 
 class StoreFwdBundle extends ErythBundle {
-    val addr = UInt(XLEN.W)
+    val addr = UInt(PAddrBits.W)
     val data = UInt(XLEN.W)
     val mask = UInt(MASKLEN.W)
     val robPtr = new ROBPtr

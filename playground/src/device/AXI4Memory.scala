@@ -27,13 +27,13 @@ class MemReqHelper extends BlackBox with HasBlackBoxInline {
 			|	input clock,
 			|	input reset,
 			|   input req_valid,
-			|   input [31:0] req_bits_addr,
-			|   input [3:0] req_bits_id,
+			|   input [${AXI4Params.addrBits - 1}:0] req_bits_addr,
+			|   input [${AXI4Params.idBits - 1}:0] req_bits_id,
 			|   input req_bits_is_write,
 			|	output reg rsp
 			|);
 			|	import "DPI-C" function bit mem_req(
-			|		input int address,
+			|		input bit[${AXI4Params.addrBits - 1}:0] address,
 			|		input int id,
 			|		input bit is_write
 			|	);
@@ -44,7 +44,7 @@ class MemReqHelper extends BlackBox with HasBlackBoxInline {
 			|		end
 			|		else begin
 			|			if (req_valid) begin
-			|				rsp <= mem_req(req_bits_addr, {28'b0, req_bits_id}, req_bits_is_write);	
+			|				rsp <= mem_req(req_bits_addr, {${32 - AXI4Params.idBits}'b0, req_bits_id}, req_bits_is_write);	
 			|			end
 			|			else begin
 			|				rsp <= 1'b0;
@@ -199,7 +199,7 @@ class AXI4Memory extends Module {
 		rd_addr := axi.ar.bits.addr
 		rd_id := axi.ar.bits.id
 	}.elsewhen(rState === rREQ) {
-		rd_addr := rd_addr + 4.U
+		rd_addr := rd_addr + (AXI4Params.DataBits / 8).U
 	}
 
 	val rd_len = RegInit(0.U(AXI4Params.lenBits.W))
@@ -213,7 +213,7 @@ class AXI4Memory extends Module {
 	axi.ar.ready := rState === rIDLE
 
 	//assert(!axi.ar.valid || axi.ar.bits.len <= 7.U)
-	EAssert(!axi.ar.valid || axi.ar.bits.size === "b010".U)
+	EAssert(!axi.ar.valid || axi.ar.bits.size === AXI4Params.axi_size.U)
 
 	// DDR
 	ddr_rd_req_ready := readRequest(rState === rWAIT_DRAM_REQ && !ddr_rd_req_ready, rd_addr, rd_id)

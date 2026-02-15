@@ -7,13 +7,13 @@ import erythrina.frontend.bpu.BPUParmams
 
 class InstInfo extends ErythBundle {
     val valid   = Bool()
-    val instr   = UInt(XLEN.W)
-    val pc      = UInt(XLEN.W)
+    val instr   = UInt(InstrBits.W)
+    val pc      = UInt(PAddrBits.W)
 
-    val bpu_hit = Bool()      // BPU says: this is a branch instruction
-    val bpu_taken = Bool()      // BPU says: let's take the branch!
-    val bpu_target = UInt(XLEN.W) // BPU says: branch target address
-    val bpu_ghr = UInt(XLEN.W) // BPU global history register
+    val bpu_hit     = Bool()      // BPU says: this is a branch instruction
+    val bpu_taken   = Bool()      // BPU says: let's take the branch!
+    val bpu_target  = UInt(InstrBits.W) // BPU says: branch target address
+    val bpu_ghr     = UInt(BPUHistoryBits.W) // BPU global history register
 }
 
 class InstFetchBlock extends ErythBundle {

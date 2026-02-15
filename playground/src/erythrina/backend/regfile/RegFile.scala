@@ -45,7 +45,7 @@ class RegFilePeeker extends BlackBox with HasBlackBoxInline with HasErythCorePar
     |       rf_idx = idx;
     |   endtask
     |
-    |   task get_rf_value(output logic [${XLEN-1}:0] value);
+    |   task get_rf_value(output longint value);
     |       value = rf_values[rf_idx];
     |   endtask
     |endmodule

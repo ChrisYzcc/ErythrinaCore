@@ -14,8 +14,8 @@ class ICacheMeta extends ErythBundle {
 
 class ICache extends ErythModule {
     val io = IO(new Bundle {
-        val req = Flipped(DecoupledIO(UInt(XLEN.W)))
-        val ftq_pft_req = Flipped(DecoupledIO(UInt(XLEN.W)))
+        val req = Flipped(DecoupledIO(UInt(PAddrBits.W)))
+        val ftq_pft_req = Flipped(DecoupledIO(UInt(PAddrBits.W)))
         
         val rsp = ValidIO(UInt((CachelineSize * 8).W))
 
@@ -33,7 +33,7 @@ class ICache extends ErythModule {
 
     val replacer = Module(new Replacer)
 
-    val pftpipe_req_arb = Module(new RRArbiter(UInt(XLEN.W), 2))
+    val pftpipe_req_arb = Module(new RRArbiter(UInt(PAddrBits.W), 2))
     pftpipe_req_arb.io.in(0).valid := io.ftq_pft_req.valid
     pftpipe_req_arb.io.in(0).bits := io.ftq_pft_req.bits
     io.ftq_pft_req.ready := pftpipe_req_arb.io.in(0).ready

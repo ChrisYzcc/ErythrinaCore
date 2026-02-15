@@ -11,9 +11,9 @@ object DCacheCMD {
 }
 
 class DCacheReq extends ErythBundle {
-    val addr = UInt(XLEN.W)
+    val addr = UInt(PAddrBits.W)
     val data = UInt(XLEN.W)
-    val mask = UInt((XLEN / 8).W)
+    val mask = UInt(MASKLEN.W)
     val cmd = UInt(CmdBits.W)
 }
 

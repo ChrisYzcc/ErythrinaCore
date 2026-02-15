@@ -231,12 +231,14 @@ class ROB extends ErythModule {
         val halter_ebreak = last_entry.exception.exceptions.ebreak && last_entry.state.finished
         val halter_load_af = last_entry.exception.exceptions.load_access_fault && last_entry.state.finished
         val halter_store_af = last_entry.exception.exceptions.store_access_fault && last_entry.state.finished
+        val halter_illegal_inst = last_entry.exception.exceptions.illegal_instr && last_entry.state.finished
 
-        halter.io.trigger := RegNext(halter_ebreak || halter_load_af || halter_store_af)
+        halter.io.trigger := RegNext(halter_ebreak || halter_load_af || halter_store_af || halter_illegal_inst)
         halter.io.reason := RegNext(Mux1H(Seq(
             halter_ebreak -> HaltOp.ebreak,
             halter_load_af -> HaltOp.load_af,
             halter_store_af -> HaltOp.store_af,
+            halter_illegal_inst -> HaltOp.illegal_inst
         )))
 
         PerfDumpTrigger("ebreak", halter_ebreak)

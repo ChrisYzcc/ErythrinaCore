@@ -3,7 +3,7 @@
 
 #include <cstdint>
 #include "cosimulation.h"
-typedef uint32_t paddr_t;
+typedef uint64_t paddr_t;
 
 #define MEMBASE     0x80000000               
 #define MEMSIZE     0x8000000
@@ -41,8 +41,8 @@ static inline bool in_flash(paddr_t addr){
 extern long init_mem(char *img);
 
 extern uint8_t *guest2host(paddr_t paddr);
-extern uint32_t pmem_read(paddr_t addr);
-extern uint32_t pmem_write(paddr_t addr, uint32_t data, uint32_t mask);
+extern uint64_t pmem_read(paddr_t addr);
+extern uint64_t pmem_write(paddr_t addr, uint64_t data, uint32_t mask);
 
 extern CoDRAMsim3 *dram;
 

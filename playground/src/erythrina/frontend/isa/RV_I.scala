@@ -17,11 +17,16 @@ object RVI_I extends InstrType {
     def XORI  = BitPat("b???????_?????_?????_100_?????_00100_11")
     def ORI   = BitPat("b???????_?????_?????_110_?????_00100_11")
     def ANDI  = BitPat("b???????_?????_?????_111_?????_00100_11")
-    def SLLI  = BitPat("b0000000_?????_?????_001_?????_00100_11")
-    def SRLI  = BitPat("b0000000_?????_?????_101_?????_00100_11")
-    def SRAI  = BitPat("b0100000_?????_?????_101_?????_00100_11")
 
-    val table = Array(
+    def SLLI_32 = BitPat("b0000000_?????_?????_001_?????_00100_11")
+    def SRLI_32 = BitPat("b0000000_?????_?????_101_?????_00100_11")
+    def SRAI_32 = BitPat("b0100000_?????_?????_101_?????_00100_11")
+
+    def SLLI_64 = BitPat("b000000?_?????_?????_001_?????_00100_11")
+    def SRLI_64 = BitPat("b000000?_?????_?????_101_?????_00100_11")
+    def SRAI_64 = BitPat("b010000?_?????_?????_101_?????_00100_11")
+
+    var table = Array(
         LB  -> List(TypeI, FuType.ldu,  LDUop.lb),
         LH  -> List(TypeI, FuType.ldu,  LDUop.lh),
         LW  -> List(TypeI, FuType.ldu,  LDUop.lw),
@@ -32,11 +37,23 @@ object RVI_I extends InstrType {
         SLTIU -> List(TypeI, FuType.alu, ALUop.sltu),
         XORI -> List(TypeI, FuType.alu, ALUop.xor),
         ORI  -> List(TypeI, FuType.alu, ALUop.or),
-        ANDI -> List(TypeI, FuType.alu, ALUop.and),
-        SLLI -> List(TypeI, FuType.alu, ALUop.sll),
-        SRLI -> List(TypeI, FuType.alu, ALUop.srl),
-        SRAI -> List(TypeI, FuType.alu, ALUop.sra)
+        ANDI -> List(TypeI, FuType.alu, ALUop.and)
     )
+
+    if (useRV64) {
+        table = table ++ Array(
+            SLLI_64 -> List(TypeI, FuType.alu, ALUop.sll),
+            SRLI_64 -> List(TypeI, FuType.alu, ALUop.srl),
+            SRAI_64 -> List(TypeI, FuType.alu, ALUop.sra)
+        )
+    }
+    else {
+        table = table ++ Array(
+            SLLI_32 -> List(TypeI, FuType.alu, ALUop.sllw),
+            SRLI_32 -> List(TypeI, FuType.alu, ALUop.srlw),
+            SRAI_32 -> List(TypeI, FuType.alu, ALUop.sraw)
+        )
+    }
 }
 
 object RVI_U extends InstrType {

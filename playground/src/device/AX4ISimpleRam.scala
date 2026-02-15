@@ -20,7 +20,7 @@ class MemReadHelpler extends BlackBox with HasBlackBoxInline {
         |    output port_rsp_valid,
         |    output [${AXI4Params.dataBits-1}:0] port_rsp_bits
         |);
-        |   import "DPI-C" function int mem_read(input int paddr);
+        |   import "DPI-C" function longint mem_read(input bit[${AXI4Params.addrBits-1}:0] paddr);
         |   
         |   // FSM
         |   reg [1:0] cur_state, nxt_state;
@@ -52,7 +52,7 @@ class MemReadHelpler extends BlackBox with HasBlackBoxInline {
         |   reg [${AXI4Params.dataBits-1}:0] data;
         |   always @(posedge clock) begin
         |       if (port_req_valid) begin
-        |           data <= mem_read(port_req_bits);
+        |           data <= mem_read(port_req_bits)[${AXI4Params.dataBits-1}:0];
         |       end
         |   end
         |
@@ -81,7 +81,7 @@ class MemWriteHelper extends BlackBox with HasBlackBoxInline {
         |    input [${AXI4Params.dataBits/8-1}:0] port_req_bits_mask,
         |    input [${AXI4Params.dataBits-1}:0] port_req_bits_data
         |);
-        |   import "DPI-C" function void mem_write(input int paddr, input bit[${AXI4Params.dataBits/8-1}:0] mask, input int data);
+        |   import "DPI-C" function void mem_write(input bit[${AXI4Params.addrBits-1}:0] paddr, input bit[${AXI4Params.dataBits/8-1}:0] mask, input bit[${AXI4Params.dataBits-1}:0] data);
         |
         |   always @(posedge clock) begin
         |       if (port_req_valid) begin

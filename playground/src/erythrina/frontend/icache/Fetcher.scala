@@ -5,9 +5,10 @@ import chisel3.util._
 import erythrina.{ErythBundle, ErythModule}
 import bus.axi4._
 import utils.PerfCount
+import bus.axi4.AXI4Params.axi_size
 
 class FetcherReq extends ErythBundle {
-    val addr = UInt(XLEN.W)
+    val addr = UInt(PAddrBits.W)
     val from_mainpipe = Bool()
 }
 
@@ -49,10 +50,11 @@ class Fetcher extends ErythModule {
     val axi = io.axi
     val (req, rsp) = (io.req, io.rsp)
 
-    val req_addr = RegInit(0.U(XLEN.W))
+    val req_addr = RegInit(0.U(PAddrBits.W))
     val req_from_mainpipe = RegInit(false.B)
     val rsp_data_ptr = RegInit(0.U(log2Ceil(ICacheParams.CachelineSize).W))
-    val rsp_data_vec = RegInit(VecInit(Seq.fill(ICacheParams.CachelineSize / 4)(0.U(XLEN.W))))
+
+    val rsp_data_vec = RegInit(VecInit(Seq.fill(ICacheParams.CachelineSize / WORDLEN)(0.U(AXI4Params.dataBits.W))))
 
     val sIDLE :: sREQ :: sRECV :: sRSP :: Nil = Enum(4)
     val state = RegInit(sIDLE)
@@ -101,9 +103,9 @@ class Fetcher extends ErythModule {
     axi.ar.valid := state === sREQ
     axi.ar.bits := 0.U.asTypeOf(axi.ar.bits)
     axi.ar.bits.addr := req_addr
-    axi.ar.bits.size := "b010".U    // 4 bytes per transfer
+    axi.ar.bits.size := AXI4Params.axi_size.U    // XLEN / 8 bytes per beat
     axi.ar.bits.burst := AXI4Params.BURST_INCR
-    axi.ar.bits.len := ((ICacheParams.CachelineSize / 4) - 1).U
+    axi.ar.bits.len := ((ICacheParams.CachelineSize / WORDLEN) - 1).U
 
     axi.r.ready := state === sRECV
 
