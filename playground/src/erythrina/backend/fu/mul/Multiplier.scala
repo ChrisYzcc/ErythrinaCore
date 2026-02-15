@@ -30,7 +30,7 @@ class Multiplier extends ErythModule{
     val b_src   = Mux(io.op(1), b_unsigned, b_signed)
 
     val use_h   = RegNext(RegNext(io.op(1, 0) =/= "b00".U))
-    val use_w   = RegNext(io.op(3))
+    val use_w   = RegNext(RegNext(io.op(3)))
 
     mulcore_inst.io.a   := a_src
     mulcore_inst.io.b   := b_src

@@ -16,6 +16,8 @@
 #include <csignal>
 #include <iostream>
 
+EmuArgs args;
+
 void signal_handler(int signum) {
     if (signum == SIGINT) {
         emu->trap(TRAP_SIG_INT, 0);
@@ -373,7 +375,11 @@ int Emulator::step() {
             }
 
             if (args.dump_trace) {
-                trace(infos.pc, infos.instr);
+                itrace(infos.pc, infos.instr);
+
+                if (infos.mem_en) {
+                    mtrace(infos.mem_addr, infos.mem_data, infos.mem_mask, !infos.rf_wen, infos.pc);
+                }
             }
 
             if (args.enable_diff) {

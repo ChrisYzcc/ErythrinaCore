@@ -63,7 +63,6 @@ private:
     VerilatedContext *contx;
     LightSSS *lightsss = NULL;
 
-    EmuArgs args;
     EmuState state;
     uint64_t cycles;
     uint64_t inst_count;

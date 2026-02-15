@@ -379,7 +379,7 @@ class Stage3 extends ErythModule {
                     get_cacheline_addr(in.bits.addr)
                 )
     }.elsewhen(axi.b.fire) {
-        aw_addr := aw_addr + 4.U
+        aw_addr := aw_addr + WORDLEN.U
     }
 
     val w_len = RegInit(0.U(AXI4Params.lenBits.W))

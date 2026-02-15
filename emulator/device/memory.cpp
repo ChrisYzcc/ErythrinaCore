@@ -3,6 +3,7 @@
 #include "cosimulation.h"
 #include "device.h"
 #include "emu.h"
+#include "trace.h"
 #include <cstdint>
 #include <iostream>
 
@@ -89,7 +90,6 @@ uint64_t pmem_read(paddr_t addr) {
     if (p != nullptr) {
         res = host_read(p);
     }
-
     return res;
 }
 
@@ -104,6 +104,5 @@ uint64_t pmem_write(paddr_t addr, uint64_t data, uint32_t mask) {
     if (p != nullptr) {
         res = host_write(p, data, mask);
     }
-
     return res;
 }

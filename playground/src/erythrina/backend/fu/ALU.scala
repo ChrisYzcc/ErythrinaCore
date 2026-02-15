@@ -18,6 +18,7 @@ class ALU extends ErythModule {
 
     val usesub = ALUop.usesub(aluop)
     val shamt = if (useRV64) src2(5, 0) else src2(4, 0)
+    val shamt_w = src2(4, 0)
     val src2in = src2 ^ Fill(XLEN, usesub)
 
     val add_sub_res = (src1 +& src2in) + usesub
@@ -40,9 +41,9 @@ class ALU extends ErythModule {
     val res_list_64 = List(
         ALUop.addw  -> SignExt(add_sub_res(31, 0), XLEN),
         ALUop.subw  -> SignExt(add_sub_res(31, 0), XLEN),
-        ALUop.sllw  -> SignExt((src1 << shamt)(31, 0), XLEN),
-        ALUop.srlw  -> ZeroExt(src1(31, 0) >> shamt, XLEN),
-        ALUop.sraw  -> SignExt((SignExt(src1(31, 0), 64) >> shamt)(31, 0), XLEN)
+        ALUop.sllw  -> SignExt((src1 << shamt_w)(31, 0), XLEN),
+        ALUop.srlw  -> SignExt(src1(31, 0) >> shamt_w, XLEN),
+        ALUop.sraw  -> SignExt((SignExt(src1(31, 0), 64) >> shamt_w)(31, 0), XLEN)
     )
 
     val res_list = if (useRV64) res_list_32 ++ res_list_64 else res_list_32

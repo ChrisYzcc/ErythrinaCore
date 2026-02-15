@@ -1,6 +1,7 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
 
+#include "emu.h"
 #include <cstdint>
 
 // Default Inst
@@ -18,6 +19,8 @@ static const char Restore[]     = "\033[0m";
 
 extern int status;
 extern uint32_t uptime();
+
+extern EmuArgs args;
 
 #define WAIT_INTERVAL 5
 #define SLOT_SIZE 2
