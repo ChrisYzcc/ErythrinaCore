@@ -81,7 +81,7 @@ class MemWriteHelper extends BlackBox with HasBlackBoxInline {
         |    input [${AXI4Params.dataBits/8-1}:0] port_req_bits_mask,
         |    input [${AXI4Params.dataBits-1}:0] port_req_bits_data
         |);
-        |   import "DPI-C" function void mem_write(input bit[${AXI4Params.addrBits-1}:0] paddr, input bit[${AXI4Params.dataBits/8-1}:0] mask, input bit[${AXI4Params.dataBits-1}:0] data);
+        |   import "DPI-C" function void mem_write(input longint paddr, input bit[${AXI4Params.dataBits/8-1}:0] mask, input longint data);
         |
         |   always @(posedge clock) begin
         |       if (port_req_valid) begin

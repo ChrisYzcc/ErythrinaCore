@@ -1,10 +1,11 @@
 #ifndef __TRACE_H__
 #define __TRACE_H__
 
+#include "difftest.h"
 #include <cstdint>
 
 extern void trace_init();
-extern void itrace(uint64_t pc, uint32_t inst);
+extern void itrace(diff_infos infos);
 extern void mtrace(uint64_t addr, uint64_t data, uint32_t mask, bool is_write, uint64_t pc);
 extern void trace_dump();
 

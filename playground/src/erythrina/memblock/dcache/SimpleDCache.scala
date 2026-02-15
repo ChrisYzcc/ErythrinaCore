@@ -405,7 +405,7 @@ class Stage3 extends ErythModule {
     axi.w.valid := state_w === sREQ_W
     axi.w.bits := 0.U.asTypeOf(axi.w.bits)
     axi.w.bits.data := Mux(cacheable, cacheline(w_ptr), in.bits.data)
-    axi.w.bits.strb := Mux(cacheable, "b1111".U, in.bits.mask)
+    axi.w.bits.strb := Mux(cacheable, Fill(WORDLEN, 1.U(1.W)), in.bits.mask)
 
     axi.b.ready := state_w === sRECV_W
 

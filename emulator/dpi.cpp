@@ -16,12 +16,12 @@ extern "C" void halt(int reason) {
 }
 
 extern "C" long long mem_read(const svBitVecVal* paddr) {
-    long long res = pmem_read((*paddr) & (~0x3u));
+    long long res = pmem_read((*paddr) & (~0x7u));
     return res;
 }
 
-extern "C" void mem_write(const svBitVecVal* paddr, const svBitVecVal* mask, const svBitVecVal* data) {
-    pmem_write((*paddr) & (~0x3u), *data, *mask);
+extern "C" void mem_write(long long paddr, const svBitVecVal* mask, long long data) {
+    pmem_write((uint64_t)paddr & (~0x7u), (uint64_t)data, *mask);
 }
 
 extern "C" svBit mem_req(const svBitVecVal* address, int id, svBit is_write) {

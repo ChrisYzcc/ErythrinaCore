@@ -1,15 +1,16 @@
 #include "trace.h"
+#include "difftest.h"
 #include <cstdio>
 
 FILE *itrace_file = nullptr;
 FILE *mtrace_file = nullptr;
 
-#define IRINGBUF_LEN 10000
+#define IRINGBUF_LEN 1000000
 char irbuf[IRINGBUF_LEN][256];
 int irbuf_ptr;
 int irbuf_valid[IRINGBUF_LEN];
 
-#define MRINGBUF_LEN 10000
+#define MRINGBUF_LEN 1000000
 char mrbuf[MRINGBUF_LEN][256];
 int mrbuf_ptr;
 int mrbuf_valid[MRINGBUF_LEN];
@@ -22,9 +23,16 @@ void trace_init() {
 
 char inst_disasm[100];
 
-void itrace(uint64_t pc, uint32_t inst) {
+void itrace(diff_infos infos) {
+    uint64_t pc = infos.pc;
+    uint32_t inst = infos.instr;
+
+    uint32_t rf_wen = infos.rf_wen;
+    uint32_t rf_waddr = infos.rf_waddr;
+    uint64_t rf_wdata = infos.rf_wdata;
+
     disassemble(inst_disasm, 100, pc, (uint8_t *)&(inst), 4);
-    sprintf(irbuf[irbuf_ptr], "\tPC: 0x%016lx\tInst: 0x%08x\t%s\n", pc, inst, inst_disasm);
+    sprintf(irbuf[irbuf_ptr], "\tPC: 0x%016lx\tInst: 0x%08x\t%s\tRF: wen=%d, waddr=%d, wdata=0x%016lx\n", pc, inst, inst_disasm, rf_wen, rf_waddr, rf_wdata);
     irbuf_valid[irbuf_ptr] = 1;
     irbuf_ptr = (irbuf_ptr + 1) % IRINGBUF_LEN;
 }
